@@ -18,24 +18,24 @@ import random
 from datetime import datetime
 from typing import Callable
 
-# ── Color palette (Dark Cyber / Neon Glassmorphism) ─────────────────────────
+# ── Color palette (Soft Dark / Matte Cyber) ──────────────────────────────────
 C = {
-    "bg":        "#09090b",   # Deep space black
-    "panel":     "#0f111a",   # Dark tech grey
-    "card":      "#131521",
-    "card2":     "#181a29",
-    "accent":    "#22d3ee",   # Neon Cyan
-    "accent2":   "#a855f7",   # Electric Purple
-    "glow":      "#818cf8",   # Indigo glow
-    "text":      "#f8fafc",   # Crisp white
-    "muted":     "#64748b",
-    "success":   "#10b981",
-    "warn":      "#f59e0b",
-    "error":     "#ef4444",
+    "bg":        "#1e1e24",   # Soft matte black/grey instead of deep space black
+    "panel":     "#25252d",   # Slightly lighter grey for panels
+    "card":      "#2b2b36",   # Elevated card background
+    "card2":     "#32323e",   # Hover/active card state
+    "accent":    "#60a5fa",   # Soft pastel blue (instead of piercing neon cyan)
+    "accent2":   "#c084fc",   # Soft lavender purple (instead of electric purple)
+    "glow":      "#93c5fd",   # Very soft blue glow
+    "text":      "#f1f5f9",   # Soft off-white (less stark than pure white)
+    "muted":     "#94a3b8",   # Softer slate grey for secondary text
+    "success":   "#34d399",   # Mint green (softer than neon emerald)
+    "warn":      "#fbbf24",   # Warm amber
+    "error":     "#f87171",   # Soft coral red
     # Holo-Fox specific
-    "holo_outline": "#38bdf8", # Light blue wireframe
-    "holo_core":    "#1e1b4b", # Dark purple inner core
-    "holo_eye":     "#67e8f9", # Glowing cyan eyes
+    "holo_outline": "#7dd3fc", # Soft sky blue wireframe
+    "holo_core":    "#312e81", # Muted indigo inner core
+    "holo_eye":     "#bae6fd", # Gentle glowing cyan/white eyes
 }
 
 # ── Typography (Premium thin sans-serif & monospace) ───────────────────────
