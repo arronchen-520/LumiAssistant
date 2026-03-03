@@ -1,1 +1,9 @@
 .env
+data/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.db-shm
+*.db-wal
