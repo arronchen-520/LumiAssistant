@@ -1,6 +1,6 @@
 """
 main.py — LumiLog 灵犀笔记
-Stack: OpenAI SDK → Ollama (LLM) + OpenAI SDK → Groq (Whisper STT) + SQLite
+Stack: LLM (Ollama / Groq / OpenAI / custom) + Groq Whisper STT + SQLite + FTS5
 """
 import os
 import sys
@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
 
-# Validate required keys before importing anything else
+# Validate Groq STT key
 _GROQ_KEY = os.getenv("GROQ_API_KEY", "")
 if not _GROQ_KEY or _GROQ_KEY.startswith("your_"):
     sys.exit(
@@ -19,7 +19,8 @@ if not _GROQ_KEY or _GROQ_KEY.startswith("your_"):
 
 from modules.database           import init_db, save_entry, get_entries, get_upcoming_reminders, save_reminder
 from modules.voice              import VoiceRecorder
-from modules.ai_brain           import analyze_entry, parse_reminder_time, chat_with_pet
+from modules.ai_brain           import process_input, parse_reminder_time, chat_with_pet
+from modules.llm_client         import get_provider_info
 from modules.reminder_scheduler import ReminderScheduler
 from modules.pet_window         import DesktopPet
 
@@ -33,10 +34,9 @@ def main():
     except ValueError as e:
         sys.exit(f"❌  {e}")
 
-    # Read STT language from env (default: auto-detect)
     stt_language = os.getenv("STT_LANGUAGE", "").strip() or None
 
-    # ── Callbacks wired from UI → logic ──────────────────────────────────────
+    # ── Callbacks ─────────────────────────────────────────────────────────────
 
     def on_record_start():
         recorder.start()
@@ -51,11 +51,23 @@ def main():
         return text
 
     def on_save_entry(text: str) -> dict:
-        recent = get_entries(limit=5)
-        print("🤖  Analyzing entry with Ollama...")
-        result = analyze_entry(text, context_entries=recent)
-        print(f"    reflection: {result.get('reflection', '')[:60]!r}")
+        """
+        统一输入处理: 单次 LLM 调用同时判断意图（日记/记忆查询/两者）。
+        Unified input processing: one LLM call handles diary + memory query.
+        """
+        recent = get_entries(limit=10)
+        print("🤖  Processing input (unified intent detection)...")
+        result = process_input(text, context_entries=recent)
 
+        input_type = result.get("input_type", "diary")
+        print(f"    type: {input_type}")
+
+        if result.get("query_answer"):
+            print(f"    query_answer: {result['query_answer'][:60]!r}")
+        if result.get("reflection"):
+            print(f"    reflection: {result['reflection'][:60]!r}")
+
+        # 提醒解析与存储
         saved_reminders = []
         for r in result.get("reminders", []):
             msg  = r.get("message", "").strip()
@@ -65,11 +77,12 @@ def main():
                 if dt:
                     save_reminder(dt, msg)
                     saved_reminders.append({"message": msg})
-                    print(f"    ⏰  reminder saved: {msg!r} @ {dt}")
+                    print(f"    ⏰  reminder: {msg!r} @ {dt}")
 
+        # 无论是日记还是查询，都存储原始输入
         save_entry(
             raw_text=text,
-            ai_reflection=result.get("reflection", ""),
+            ai_reflection=result.get("reflection") or result.get("query_answer") or "",
             tags=result.get("summary_tags", []),
         )
         result["reminders"] = saved_reminders
@@ -79,7 +92,7 @@ def main():
         recent = get_entries(limit=10)
         return chat_with_pet(message, recent_entries=recent)
 
-    # ── Build UI ──────────────────────────────────────────────────────────────
+    # ── UI ────────────────────────────────────────────────────────────────────
 
     pet = DesktopPet(
         on_record_start=on_record_start,
@@ -90,7 +103,7 @@ def main():
     )
     pet.set_save_callback(on_save_entry)
 
-    # ── Reminder scheduler ────────────────────────────────────────────────────
+    # ── Reminder Scheduler ────────────────────────────────────────────────────
 
     def on_reminder_fire(message: str):
         pet.root.after(0, lambda: pet.show_reminder_popup(message))
@@ -98,12 +111,12 @@ def main():
     scheduler = ReminderScheduler(on_reminder_callback=on_reminder_fire)
     scheduler.start()
 
-    model = os.getenv("OLLAMA_MODEL", "llama3.2")
+    info  = get_provider_info()
     lang  = stt_language or "auto"
     print(f"\n🌟  LumiLog 灵犀笔记 is running!")
-    print(f"    LLM : Ollama ({model})  →  localhost:11434")
-    print(f"    STT : Groq Whisper large-v3-turbo (language={lang})")
-    print(f"    DB  : SQLite  →  data/diary.db  [FTS5 enabled]")
+    print(f"    LLM : {info['provider'].upper()} ({info['model']})  →  {info['url']}")
+    print(f"    STT : Groq Whisper large-v3-turbo  (language={lang})")
+    print(f"    DB  : SQLite + FTS5  →  data/diary.db")
     print(f"\n    Click the pet to open the diary panel.")
     print(f"    Right-click for the menu.  Ctrl+C to quit.\n")
 

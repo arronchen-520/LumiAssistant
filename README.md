@@ -4,14 +4,14 @@
 
 # ✦ LumiLog · 灵犀笔记
 
-**Your AI companion that lives on your desktop, listens to your day, and actually remembers.**
+**Your AI companion that lives on your desktop, hears your day, and actually remembers.**
 
-*Speak → Reflect → Remember → Ask anything*
+*Speak → Reflect → Remember → Ask anything — in one flow.*
 
 <br/>
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3b82f6?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![Ollama](https://img.shields.io/badge/LLM-Ollama%20%28local%29-a78bfa?style=flat-square)](https://ollama.com)
+[![Ollama](https://img.shields.io/badge/LLM-Ollama%20%2F%20Groq%20%2F%20OpenAI-a78bfa?style=flat-square)](https://ollama.com)
 [![Groq](https://img.shields.io/badge/STT-Groq%20Whisper-34d399?style=flat-square)](https://console.groq.com)
 [![SQLite](https://img.shields.io/badge/Storage-SQLite%20+%20FTS5-f59e0b?style=flat-square)](https://sqlite.org)
 [![License](https://img.shields.io/badge/License-MIT-64748b?style=flat-square)](LICENSE)
@@ -25,18 +25,17 @@
 
 ---
 
-LumiLog is a **floating desktop pet + AI diary** that sits quietly in the corner of your screen. Tap to open. Speak your day. It transcribes in ~1 second, reflects back something real, extracts your reminders, and builds a memory of you — one entry at a time.
-
-Then ask it anything:
+LumiLog is a **floating desktop pet + AI diary** that sits quietly in the corner of your screen. Speak your day, and it does four things at once: transcribes in ~1 second, reflects back something real, extracts reminders automatically, and—if you asked a question inside your entry—**answers it from your diary history**.
 
 ```
-You:    "What was I stressed about last week?"
-灵犀:   "You had three back-to-back deadlines and mentioned feeling
-         behind on the project twice. You also wrote that you were
-         proud of finally finishing the design doc on Thursday. ✦"
+You:    "I'm exhausted. Also, what did I do last week?"
 
-You:    "Summarise that more briefly."
-灵犀:   "Stressful week, but ended with a win. ✓"
+灵犀:   [Reflection]  You've been running hard — this is the third week
+                      you've mentioned feeling drained. ✦
+
+        [Memory]      Last week: finished the design doc on Tuesday, had
+                      back-to-back calls Wednesday, and took a half-day
+                      Friday. You seemed lighter by the end of it.
 ```
 
 **Everything runs on your machine. Your diary never leaves.**
@@ -47,57 +46,70 @@ You:    "Summarise that more briefly."
 
 | | LumiLog | Notion / Apple Notes | Day One |
 |---|---|---|--|
-| Voice → text in ~1s | ✅ Groq Whisper | ❌ | 💰 premium |
-| AI that *reads* your entries | ✅ local Ollama | ❌ | ❌ |
-| Remembers what you said last week | ✅ memory pipeline | ❌ | ❌ |
-| Conversation history across questions | ✅ 20-turn context | ❌ | ❌ |
-| 100% private, runs offline | ✅ | ❌ cloud | ❌ cloud |
-| Cute pet on your desktop | ✅ obviously | 😐 | 😐 |
+| Voice → text in ~1s | ✅ | ❌ | 💰 premium |
+| AI that *reads* your entries | ✅ local LLM | ❌ | ❌ |
+| Answers memory questions inline | ✅ unified flow | ❌ | ❌ |
+| Conversation memory across turns | ✅ 20-turn context | ❌ | ❌ |
+| Local, Groq, or OpenAI LLM | ✅ pick any | ❌ | ❌ |
+| 100% private, runs offline | ✅ (Ollama mode) | ❌ cloud | ❌ cloud |
+| Cute pet on your desktop | ✅ animated ✦star | 😐 | 😐 |
 
 ---
 
 ## Features
 
-### 🐾 Desktop Pet
-A floating animated companion that lives in the corner of your screen. Drag it anywhere. It breathes, blinks, bounces when happy, and drifts to sleep if you've been away too long.
+### 🐾 Desktop Pet — Now with ✦ Star & Paws
+An animated chibi companion drawn entirely with geometry — no image files. New design: rounder head, glassy layered eyes, star hair accessory that pulses, paws and curly tail.
 
 ```
-idle  →  breathing sway, random blinks
-listening  →  dots pulse above head
-happy  →  sparkles, upward-curve smile, bounce
-sleepy  →  Zzz bubbles after 10 min idle
+idle       →  breathing sway, random blinks
+listening  →  animated waveform bars (red) above head while recording
+thinking   →  spinning star orbit while LLM processes
+happy      →  sparkles, ^‿^ smile, bounce
+sleepy     →  Zzz bubbles after 10 min idle, auto-wakes on any touch
 ```
 
 ### 🎙️ Voice-First, ~1 Second Transcription
-Hit record, talk naturally — in Chinese, English, or both. [Groq Whisper](https://console.groq.com) handles it in about one second. The transcript lands in the box, ready to save. No language selection needed — it auto-detects.
+Hit record. Talk in Chinese, English, Japanese, or mix freely. [Groq Whisper](https://console.groq.com) transcribes in about one second — auto-detects language by default. No setup required.
 
-### 💭 Grounded AI Reflection
-After saving, your local Ollama model reads what you wrote and responds with a short, *specific* reflection. Not "sounds tough!" — but "you've mentioned the same project slipping three times this week."
+### 🧠 Unified Intent Detection — Diary + Memory in One Shot
 
-### 🧠 Conversation Memory
-Ask questions like a normal person. LumiLog maintains a full conversation thread — follow-up questions, clarifications, and summaries all work:
+The key design: **one LLM call** reads your input and decides what it is.
 
-```
-"What did I do last week?"         → date-range query across diary
-"When did I last mention the gym?" → full-text search (FTS5)
-"What's coming up this month?"     → reminder lookup
-"Summarise that more briefly."     → follow-up, uses prior context ✓
-"What was I worried about?"        → keyword semantic routing
-```
-
-### ⏰ Smart Reminders — Extracted Automatically
-Just write naturally. LumiLog parses the time and sets the reminder:
+- Sharing your day → reflection + tag extraction  
+- Asking a question → memory retrieval answer  
+- Both in the same sentence → both, simultaneously  
 
 ```
-"Remind me to follow up with Sarah on Friday at 3pm"
-"Meeting with Tom tomorrow at 10"
-"Call the dentist next Monday morning"
+"Had a great gym session today!"           → diary reflection
+"What was I stressed about last week?"     → memory retrieval
+"I'm tired. What's my schedule tomorrow?"  → diary + reminder lookup
 ```
 
-A popup fires when the moment arrives — no calendar app needed.
+Results appear in separate labeled boxes in the Write tab — no tab-switching needed.
 
-### 💬 Stateful Chat
-The chat tab maintains a rolling 20-turn conversation history. 灵犀 knows what it said three messages ago, and can refer back to it.
+### 🔌 Choose Your LLM — Ollama, Groq, OpenAI, or Custom
+
+```env
+LLM_PROVIDER=ollama   # local, fully private (default)
+LLM_PROVIDER=groq     # cloud, very fast, free tier
+LLM_PROVIDER=openai   # GPT-4o-mini, etc.
+LLM_PROVIDER=custom   # any OpenAI-compatible endpoint
+```
+
+### ⏰ Reminders Extracted Automatically
+Write naturally. Reminders are parsed with `dateparser` (instant — no extra LLM call):
+```
+"Meeting with Tom tomorrow at 10"    → ⏰ 2026-03-04 10:00
+"Call dentist next Monday morning"   → ⏰ 2026-03-09 09:00
+```
+
+### 💬 Stateful Chat Tab
+Rolling 20-turn conversation history. Follow-up questions work:
+```
+"What was I stressed about?"   → [answers]
+"Tell me more about that."     → [refers back to previous answer]
+```
 
 ---
 
@@ -105,12 +117,12 @@ The chat tab maintains a rolling 20-turn conversation history. 灵犀 knows what
 
 | Layer | Technology | Why |
 |-------|-----------|-----|
-| LLM | [Ollama](https://ollama.com) (local) | Fully private. No API cost. Swap any model. |
+| LLM | Ollama · Groq · OpenAI · custom | Your choice — local privacy or cloud speed |
 | STT | [Groq Whisper](https://console.groq.com) | ~10× faster than OpenAI Whisper. Free tier. |
-| SDK | `openai` Python package | Both Ollama and Groq expose OpenAI-compatible APIs — one client for everything. |
-| DB | SQLite + FTS5 | Zero config. Indexed full-text search. Your data in one portable file. |
-| GUI | `tkinter` + Canvas | Ships with Python. Sprite drawn with geometry — no image files. |
-| Time parsing | `dateparser` | Parses natural-language times instantly, no LLM round-trip. |
+| SDK | `openai` Python package | One package handles all providers (OpenAI-compatible API) |
+| DB | SQLite + FTS5 | Indexed full-text search. Zero config. One portable file. |
+| Time parsing | `dateparser` | Natural language → datetime instantly, no LLM call |
+| GUI | `tkinter` + Canvas | Ships with Python. Pet sprite is pure geometry. |
 
 ---
 
@@ -119,15 +131,14 @@ The chat tab maintains a rolling 20-turn conversation history. 灵犀 knows what
 ### Prerequisites
 
 - Python 3.11+
-- [Ollama](https://ollama.com) installed and running locally
-- A free [Groq API key](https://console.groq.com) (for Whisper transcription)
+- A free [Groq API key](https://console.groq.com) (for Whisper STT)
+- For Ollama mode: [Ollama](https://ollama.com) installed and running
 
 ### Install
 
 ```bash
 git clone https://github.com/yourname/lumilog
 cd lumilog
-
 pip install -r requirements.txt
 ```
 
@@ -137,27 +148,31 @@ pip install -r requirements.txt
 cp env.example .env
 ```
 
-Edit `.env`:
+**Ollama (local, private):**
 ```env
-GROQ_API_KEY=your_key_here   # from console.groq.com (free)
-OLLAMA_MODEL=llama3.2        # or mistral, qwen2.5, gemma3 …
-STT_LANGUAGE=                # leave blank for auto-detect (recommended)
+GROQ_API_KEY=your_groq_key_here
+LLM_PROVIDER=ollama
+LLM_MODEL=llama3.2
 ```
 
-### Pull a model and start Ollama
-
-```bash
-ollama pull llama3.2
-ollama serve          # keep this running
+**Groq (cloud, fast, free tier):**
+```env
+GROQ_API_KEY=your_groq_key_here
+LLM_PROVIDER=groq
+LLM_API_KEY=your_groq_key_here
+LLM_MODEL=llama-3.3-70b-versatile
 ```
 
 ### Run
 
 ```bash
+# Ollama only: pull a model first
+ollama pull llama3.2 && ollama serve
+
 python main.py
 ```
 
-The pet appears in the **bottom-right corner** of your screen. Click it to open the diary panel.
+Pet appears in the **bottom-right corner**. Click to open the diary panel.
 
 ---
 
@@ -166,29 +181,20 @@ The pet appears in the **bottom-right corner** of your screen. Click it to open 
 | Action | What happens |
 |--------|-------------|
 | **Click** the pet | Opens / closes the diary panel |
-| **Right-click** | Quick menu: record, set mood, quit |
-| **Drag** | Move it anywhere on your screen |
-| **🎙️ Record** | Click to start, click to stop + transcribe |
-| **Save & Reflect** | Saves entry, triggers AI reflection, extracts reminders |
-| **Chat tab** | Ask anything — memory queries or casual conversation |
+| **Right-click** | Menu: record, set mood, quit |
+| **Drag** anywhere | Move it to your preferred corner |
+| **🎙️ Record** | Start → waveform appears → stop → ~1s transcription |
+| **Save & Reflect** | Unified LLM: reflection + any memory query answered |
+| **Chat tab** | Stateful 20-turn conversation with 灵犀 |
 
-### Memory queries that work
-
-```
-"What did I do yesterday?"
-"Summarise last week for me"
-"What was I stressed about?"
-"When did I last write about work?"
-"What do I have coming up next week?"
-"Did I write anything about the gym?"
-```
-
-### Setting reminders naturally
+### Memory queries (in the Write tab or Chat tab)
 
 ```
-"Meeting with Tom tomorrow at 10am"
-"Remember to submit the report by Friday"
-"Call dentist next Monday morning"
+"What did I do last week?"
+"When did I last write about the gym?"
+"What's coming up this month?"
+"Summarise my month"
+"What was I excited about?" 
 ```
 
 ---
@@ -198,79 +204,40 @@ The pet appears in the **bottom-right corner** of your screen. Click it to open 
 ```
 lumilog/
 ├── main.py                        Entry point — wires all callbacks
-├── .env.example
+├── env.example                    All config options documented
 ├── requirements.txt
-├── data/
-│   └── diary.db                   SQLite + FTS5 (auto-created)
 └── modules/
-    ├── llm_client.py              Singleton OpenAI-SDK client → Ollama
-    ├── ai_brain.py                Diary analysis · time parsing · chat routing
-    │                              └─ 20-turn conversation history
-    ├── memory.py                  3-stage memory pipeline (plan → retrieve → answer)
-    ├── database.py                SQLite CRUD + FTS5 full-text search
-    ├── voice.py                   Microphone capture + Groq Whisper transcription
-    ├── reminder_scheduler.py      Background thread firing due reminders
-    └── pet_window.py              Desktop pet sprite + full panel UI
-```
-
-### Memory pipeline
-
-```
-"What did I do last week?"
-        │
-        ▼
-  is_memory_query()          — keyword pre-filter (no LLM, instant)
-        │ yes
-        ▼
-  _plan_query()              — Ollama temp=0: intent → structured JSON
-  { "query_type": "date_range",
-    "date_start": "2026-02-24",
-    "date_end":   "2026-03-02" }
-        │
-        ▼
-  _retrieve()                — FTS5 / date / reminder SQL query
-        │
-        ▼
-  _generate_answer()         — Ollama temp=0.7: synthesise warm reply
-        │
-        ▼
-  "Last week you had three work meetings and were worried about…"
-        │
-        ▼
-  _history.append([user, assistant])   — available for follow-up questions
+    ├── llm_client.py              Multi-provider: Ollama/Groq/OpenAI/custom
+    ├── ai_brain.py                Unified intent: diary + memory in one LLM call
+    ├── memory.py                  3-stage pipeline: plan → FTS5 retrieve → answer
+    ├── database.py                SQLite + FTS5 full-text search
+    ├── voice.py                   Mic capture + Groq Whisper STT
+    ├── reminder_scheduler.py      Background thread: fires due reminders
+    └── pet_window.py              Animated chibi pet + 4-tab panel UI
 ```
 
 ---
 
 ## Privacy
 
-All diary data is in `data/diary.db` on your local machine. LLM inference runs entirely through Ollama — **no diary content is ever sent to a cloud API**.
-
-The only external call: Groq Whisper receives your raw audio for transcription. No text, no diary content.
+- **Ollama mode:** entirely local. Zero external calls except Groq STT (audio only — no diary text).
+- **Groq/OpenAI mode:** diary entries sent to cloud LLM. Choose based on your preference.
 
 ---
 
 ## Roadmap
 
-- [ ] Semantic / vector memory (embeddings → cosine search for "that stressful period")
-- [ ] VAD auto-stop (silence detection — no more manual stop button)
-- [ ] Groq LLM option (removes Ollama requirement for new users)
-- [ ] Mood tracking column + weekly mood chart
+- [ ] Semantic / vector memory (embeddings → "that stressful project" style queries)
+- [ ] VAD auto-stop (silence detection — no manual stop button)
+- [ ] Mood tracking + weekly chart
 - [ ] Weekly AI summary reports
 - [ ] Export diary as Markdown or PDF
-- [ ] Custom pet skins / Live2D integration
 - [ ] Cloud sync via Supabase (opt-in)
 
 ---
 
-## Contributing
-
-Issues and PRs welcome. If you build something with it, open a discussion — would love to see what people make.
-
----
-
 <div align="center">
-<sub>Built with Python, Ollama, and the belief that your diary should stay yours.</sub>
+<sub>Built with Python · Runs local · Your diary stays yours.</sub>
 <br/>
-<sub>✦ Star if you like it — it helps more people find this ✦</sub>
+<sub>✦ Star if you like it — it helps others find it ✦</sub>
 </div>

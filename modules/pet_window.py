@@ -49,20 +49,20 @@ FONT_MONO= ("Consolas", 9)
 
 class PetSprite:
     """
-    Draws a cute rounded character on a tk.Canvas using geometric primitives.
-    Achieves a soft pixel-art/chibi look without external images.
-    Animates: breathing (body scale), eye blink, idle sway, happy bounce.
+    现代可爱风格宠物精灵 (Modern chibi-style pet sprite).
+    All drawn with tkinter Canvas primitives — no image files.
+    States: idle | happy | sleepy | talking | listening | thinking
     """
     def __init__(self, canvas: tk.Canvas, cx: int, cy: int, scale: float = 1.0):
         self.canvas = canvas
         self.cx = cx
         self.cy = cy
         self.scale = scale
-        self.t = 0.0            # animation time
-        self.state = "idle"     # idle | happy | sleepy | talking
+        self.t = 0.0
+        self.state = "idle"
         self.blink_t = 0.0
         self.next_blink = random.uniform(2, 5)
-        self._items = []        # canvas item IDs to delete on redraw
+        self._items = []
 
     def _s(self, v): return v * self.scale
     def _x(self, dx=0): return self.cx + self._s(dx)
@@ -106,7 +106,6 @@ class PetSprite:
         return item
 
     def draw(self):
-        # Remove old items
         for item in self._items:
             self.canvas.delete(item)
         self._items = []
@@ -116,37 +115,60 @@ class PetSprite:
         cy = self._y()
         s = self._s
 
-        # ── Shadow ──
-        self._draw_oval(cx, cy + s(36), s(28), s(8),
-                        fill="#000000", outline="", stipple="gray25")
+        # ── Shadow (soft) ──
+        self._draw_oval(cx, cy + s(42), s(26), s(7),
+                        fill="#0a0a18", outline="", stipple="gray25")
 
-        # ── Ears ──
-        ear_color = C["pet_body"]
-        self._draw_oval(cx - s(22), cy - s(28), s(10), s(13),
-                        fill=ear_color, outline=C["pet_eye"], width=1)
-        self._draw_oval(cx + s(22), cy - s(28), s(10), s(13),
-                        fill=ear_color, outline=C["pet_eye"], width=1)
-        # Inner ear
-        self._draw_oval(cx - s(22), cy - s(28), s(6), s(8),
-                        fill="#fca5a5", outline="")
-        self._draw_oval(cx + s(22), cy - s(28), s(6), s(8),
-                        fill="#fca5a5", outline="")
-
-        # ── Body ──
-        body_scale_y = 1.0 + math.sin(self.t * 1.5) * 0.015
-        self._draw_oval(cx, cy + s(28), s(22), s(18) * body_scale_y,
+        # ── Body (rounder, fluffier) ──
+        body_bounce = 1.0 + math.sin(self.t * 1.5) * 0.02
+        self._draw_oval(cx, cy + s(34), s(20), s(16) * body_bounce,
                         fill=C["pet_body"], outline=C["pet_eye"], width=1)
+        # Belly highlight
+        self._draw_oval(cx, cy + s(32), s(10), s(8),
+                        fill="#fef9c3", outline="")
 
-        # ── Head ──
-        self._draw_oval(cx, cy, s(32), s(30),
+        # ── Ears (angled, fluffier) ──
+        self._draw_oval(cx - s(24), cy - s(30), s(9), s(14),
+                        fill=C["pet_body"], outline=C["pet_eye"], width=1)
+        self._draw_oval(cx + s(24), cy - s(30), s(9), s(14),
+                        fill=C["pet_body"], outline=C["pet_eye"], width=1)
+        # Inner ear (pink gradient effect with two ovals)
+        self._draw_oval(cx - s(24), cy - s(30), s(5), s(9), fill="#f9a8d4", outline="")
+        self._draw_oval(cx + s(24), cy - s(30), s(5), s(9), fill="#f9a8d4", outline="")
+        # Ear tip highlight
+        self._draw_oval(cx - s(24), cy - s(40), s(3), s(3), fill="#fde68a", outline="")
+        self._draw_oval(cx + s(24), cy - s(40), s(3), s(3), fill="#fde68a", outline="")
+
+        # ── Head (rounder, bigger) ──
+        self._draw_oval(cx, cy, s(34), s(32),
                         fill=C["pet_body"], outline=C["pet_eye"], width=1.5)
+        # Head top highlight
+        self._draw_oval(cx, cy - s(16), s(22), s(10), fill="#fef9c3", outline="")
+
+        # ── Star hair accessory ✦ ──
+        star_x = cx + s(20)
+        star_y = cy - s(28)
+        star_pulse = 1.0 + math.sin(self.t * 2.5) * 0.15
+        star_r = s(5) * star_pulse
+        self._draw_oval(star_x, star_y, star_r, star_r, fill=C["glow"], outline="")
+        # Star cross lines
+        for angle in [0, 45, 90, 135]:
+            rad = math.radians(angle)
+            item = self.canvas.create_line(
+                star_x + math.cos(rad) * star_r * 1.8,
+                star_y + math.sin(rad) * star_r * 1.8,
+                star_x - math.cos(rad) * star_r * 1.8,
+                star_y - math.sin(rad) * star_r * 1.8,
+                fill=C["glow"], width=1,
+            )
+            self._items.append(item)
 
         # ── Blush ──
-        blush_alpha = 0.7 if self.state == "happy" else 0.4
-        self._draw_oval(cx - s(18), cy + s(8), s(8), s(5),
-                        fill=C["pet_blush"], outline="", stipple="gray50" if blush_alpha < 0.6 else "")
-        self._draw_oval(cx + s(18), cy + s(8), s(8), s(5),
-                        fill=C["pet_blush"], outline="", stipple="gray50" if blush_alpha < 0.6 else "")
+        blush_stipple = "" if self.state == "happy" else "gray50"
+        self._draw_oval(cx - s(20), cy + s(9), s(9), s(5),
+                        fill=C["pet_blush"], outline="", stipple=blush_stipple)
+        self._draw_oval(cx + s(20), cy + s(9), s(9), s(5),
+                        fill=C["pet_blush"], outline="", stipple=blush_stipple)
 
         # ── Eyes ──
         self._draw_eyes(cx, cy)
@@ -154,52 +176,59 @@ class PetSprite:
         # ── Mouth ──
         self._draw_mouth(cx, cy)
 
-        # ── Tail (little tuft at bottom) ──
-        self._draw_oval(cx + s(18), cy + s(40), s(7), s(5),
+        # ── Tail (curly tuft) ──
+        self._draw_oval(cx + s(20), cy + s(46), s(8), s(6),
+                        fill=C["pet_body"], outline=C["pet_eye"], width=1)
+        self._draw_oval(cx + s(26), cy + s(42), s(5), s(4),
                         fill=C["pet_body"], outline=C["pet_eye"], width=1)
 
-        # ── Shine on head ──
-        self._draw_oval(cx - s(10), cy - s(15), s(6), s(4),
-                        fill=C["pet_shine"], outline="")
+        # ── Paws ──
+        self._draw_oval(cx - s(16), cy + s(46), s(7), s(5),
+                        fill=C["pet_body"], outline=C["pet_eye"], width=1)
+        self._draw_oval(cx + s(4),  cy + s(48), s(7), s(5),
+                        fill=C["pet_body"], outline=C["pet_eye"], width=1)
 
-        # ── Happy sparkles ──
+        # ── State overlays ──
         if self.state == "happy":
             self._draw_sparkles(cx, cy)
-
-        # ── Zzz if sleepy ──
-        if self.state == "sleepy":
+        if self.state in ("sleepy",):
             self._draw_zzz(cx, cy)
-
-        # ── Talking bubble ──
         if self.state == "talking":
             self._draw_talk_indicator(cx, cy)
+        if self.state == "listening":
+            self._draw_waveform(cx, cy)
+        if self.state == "thinking":
+            self._draw_thinking(cx, cy)
 
     def _draw_eyes(self, cx, cy):
         s = self._s
-        # Blink
         is_blinking = self.blink_t < 0.15
 
-        if is_blinking or self.state == "sleepy":
-            # Closed eyes (arc)
-            for ex in [cx - s(11), cx + s(11)]:
-                self._draw_oval(ex, cy - s(3), s(8), s(3),
+        if self.state == "happy":
+            # Happy crescents (^‿^)
+            for ex in [cx - s(12), cx + s(12)]:
+                self._draw_oval(ex, cy - s(1), s(10), s(7),
+                                fill=C["pet_body"], outline=C["pet_eye"], width=2)
+        elif is_blinking or self.state == "sleepy":
+            # Closed — thin horizontal oval
+            for ex in [cx - s(12), cx + s(12)]:
+                self._draw_oval(ex, cy - s(3), s(9), s(3),
                                 fill=C["pet_eye"], outline="")
         else:
-            # Open eyes
-            for ex in [cx - s(11), cx + s(11)]:
-                self._draw_oval(ex, cy - s(3), s(8), s(9),
+            # Open eyes — bigger, rounder, more glassy
+            for ex in [cx - s(12), cx + s(12)]:
+                # Iris
+                self._draw_oval(ex, cy - s(3), s(9), s(10),
+                                fill="#312e81", outline="")
+                # Pupil
+                self._draw_oval(ex, cy - s(2), s(5), s(6),
                                 fill=C["pet_eye"], outline="")
-                # Shine
-                self._draw_oval(ex + s(3), cy - s(6), s(2.5), s(2.5),
+                # Main shine
+                self._draw_oval(ex + s(3.5), cy - s(7), s(3), s(3),
                                 fill="white", outline="")
-                self._draw_oval(ex - s(2), cy - s(1), s(1.5), s(1.5),
-                                fill="white", outline="")
-
-        if self.state == "happy":
-            # Happy curve eyes (upside-down U)
-            for ex in [cx - s(11), cx + s(11)]:
-                self._draw_oval(ex, cy - s(2), s(9), s(6),
-                                fill=C["pet_body"], outline=C["pet_eye"], width=1.5)
+                # Small secondary shine
+                self._draw_oval(ex - s(2.5), cy + s(1), s(1.5), s(1.5),
+                                fill="#c4b5fd", outline="")
 
     def _draw_mouth(self, cx, cy):
         s = self._s
@@ -262,8 +291,39 @@ class PetSprite:
         phase = int(self.t * 3) % 3
         for i in range(3):
             color = C["accent"] if i == phase else C["muted"]
-            self._draw_oval(cx + s(-10 + i * 10), cy - s(45), s(3), s(3),
+            self._draw_oval(cx + s(-10 + i * 10), cy - s(48), s(3.5), s(3.5),
                             fill=color, outline="")
+
+    def _draw_waveform(self, cx, cy):
+        """Animated waveform bars during voice recording (listening state)."""
+        s = self._s
+        bars = 5
+        bar_w = s(4)
+        gap = s(2)
+        total_w = bars * bar_w + (bars - 1) * gap
+        x0 = cx - total_w / 2
+        for i in range(bars):
+            h = s(4 + 8 * abs(math.sin(self.t * 4 + i * 0.8)))
+            x = x0 + i * (bar_w + gap)
+            y_top = cy - s(52) - h
+            y_bot = cy - s(52) + h
+            item = self.canvas.create_rectangle(
+                x, y_top, x + bar_w, y_bot,
+                fill=C["error"], outline="", width=0,
+            )
+            self._items.append(item)
+
+    def _draw_thinking(self, cx, cy):
+        """Spinning stars during LLM processing."""
+        s = self._s
+        n = 4
+        r = s(12)
+        for i in range(n):
+            angle = self.t * 2 + i * (2 * math.pi / n)
+            x = cx + r * math.cos(angle)
+            y = (cy - s(50)) + r * 0.4 * math.sin(angle)
+            size = s(3 + math.sin(self.t * 3 + i) * 1.5)
+            self._draw_oval(x, y, size, size, fill=C["glow"], outline="")
 
     def tick(self, dt: float):
         self.t += dt
@@ -302,8 +362,8 @@ class DesktopPet:
         self._drag_y     = 0
         self._dragged    = False
         self._last_frame = time.time()
-        self._idle_time  = 0.0          # seconds since last interaction
-        self._IDLE_SLEEP = 600.0        # 10 min → switch to sleepy state
+        self._idle_time  = 0.0
+        self._IDLE_SLEEP = 600.0
 
         self._build_pet_window()
         self._build_panel()
@@ -520,18 +580,24 @@ class DesktopPet:
         self.panel.protocol("WM_DELETE_WINDOW", self._hide_panel)
         self.panel.withdraw()
 
-        # ── Header ──
-        hdr = tk.Frame(self.panel, bg=C["card"], pady=14)
+        # ── Header (layered glow effect) ──
+        hdr = tk.Frame(self.panel, bg=C["card"], pady=0)
         hdr.pack(fill="x")
+        # Accent top-border strip
+        tk.Frame(hdr, bg=C["accent"], height=2).pack(fill="x")
+        hdr_inner = tk.Frame(hdr, bg=C["card"], pady=12)
+        hdr_inner.pack(fill="x")
 
-        tk.Label(hdr, text="✦", font=("Segoe UI", 16),
-                 bg=C["card"], fg=C["accent"]).pack(side="left", padx=(16, 4))
-        tk.Label(hdr, text="灵犀笔记 AI 日记本",
-                 font=FONT_XL, bg=C["card"], fg=C["text"]).pack(side="left")
+        left_col = tk.Frame(hdr_inner, bg=C["card"])
+        left_col.pack(side="left", padx=(16, 0))
+        tk.Label(left_col, text="✦ 灵犀笔记",
+                 font=FONT_XL, bg=C["card"], fg=C["glow"]).pack(anchor="w")
+        tk.Label(left_col, text="LumiLog · AI Diary Companion",
+                 font=("Segoe UI", 8), bg=C["card"], fg=C["muted"]).pack(anchor="w")
 
         # Record button in header
         self._hdr_rec_btn = tk.Button(
-            hdr, text="🎙️",
+            hdr_inner, text="🎙️",
             font=("Segoe UI", 14),
             bg=C["card"], fg=C["accent"],
             relief="flat", cursor="hand2",
@@ -624,13 +690,28 @@ class DesktopPet:
                  bg=C["bg"], fg=C["accent"]).pack(anchor="w", padx=14)
 
         self._reflection_box = scrolledtext.ScrolledText(
-            parent, height=5,
+            parent, height=4,
             font=("Segoe UI", 10),
             bg=C["card2"], fg=C["glow"],
             relief="flat", padx=10, pady=10,
             wrap="word", state="disabled",
         )
-        self._reflection_box.pack(fill="both", padx=14, pady=(2, 14))
+        self._reflection_box.pack(fill="x", padx=14, pady=(2, 4))
+
+        # ── Memory query answer box (shown only when query detected) ──
+        self._query_frame = tk.Frame(parent, bg=C["bg"])
+        # (packed/unpacked dynamically)
+
+        tk.Label(self._query_frame, text="🧠  记忆查询回答",
+                 font=FONT_SM, bg=C["bg"], fg=C["accent2"]).pack(anchor="w", padx=14)
+        self._query_box = scrolledtext.ScrolledText(
+            self._query_frame, height=5,
+            font=("Segoe UI", 10),
+            bg="#0f172a", fg=C["accent2"],
+            relief="flat", padx=10, pady=10,
+            wrap="word", state="disabled",
+        )
+        self._query_box.pack(fill="both", padx=14, pady=(2, 14))
 
     def _toggle_record_panel(self):
         self._reset_idle()
@@ -665,8 +746,9 @@ class DesktopPet:
             messagebox.showwarning("提示", "日记内容为空哦 ✦")
             return
         self._save_status.config(text="思考中...", fg=C["warn"])
-        self._set_reflection("💭 小记正在认真读你的日记...")
-        self.sprite.set_state("talking")
+        self._set_reflection("💭 灵犀正在理解你的输入...")
+        self._set_query_answer(None)  # clear previous answer
+        self.sprite.set_state("thinking")
 
         def ai_work():
             result = self._save_callback(text)
@@ -674,19 +756,35 @@ class DesktopPet:
         threading.Thread(target=ai_work, daemon=True).start()
 
     def _after_save(self, result: dict):
-        reflection = result.get("reflection", "谢谢你今天的分享 🌙")
-        reminders  = result.get("reminders", [])
-        tags       = result.get("summary_tags", [])
+        input_type   = result.get("input_type", "diary")
+        reflection   = result.get("reflection")
+        query_answer = result.get("query_answer")
+        reminders    = result.get("reminders", [])
 
-        self._set_reflection(reflection)
+        # Show reflection if present
+        if reflection:
+            self._set_reflection(reflection)
+        else:
+            self._set_reflection("")
+
+        # Show query answer if present
+        self._set_query_answer(query_answer)
+
         self._entry_text.delete("1.0", "end")
 
-        count = len(reminders)
-        status = f"✅ 已保存{f'，设置了 {count} 个提醒' if count else ''}"
+        count  = len(reminders)
+        badges = []
+        if input_type in ("query", "both"):
+            badges.append("🧠 记忆查询")
+        if count:
+            badges.append(f"⏰ {count} 个提醒")
+        status = "✅ 已保存" + (f"  ·  {'  ·  '.join(badges)}" if badges else "")
         self._save_status.config(text=status, fg=C["success"])
 
         self.sprite.set_state("happy")
-        self.show_bubble(reflection[:30] + "...", duration=5)
+        preview = (query_answer or reflection or "")[:30]
+        if preview:
+            self.show_bubble(preview + "...", duration=5)
 
         self._refresh_history()
         self._refresh_reminders()
@@ -694,8 +792,20 @@ class DesktopPet:
     def _set_reflection(self, text: str):
         self._reflection_box.config(state="normal")
         self._reflection_box.delete("1.0", "end")
-        self._reflection_box.insert("1.0", text)
+        if text:
+            self._reflection_box.insert("1.0", text)
         self._reflection_box.config(state="disabled")
+
+    def _set_query_answer(self, text: str | None):
+        """Show or hide the memory query answer box."""
+        if text:
+            self._query_frame.pack(fill="x", pady=(0, 4))
+            self._query_box.config(state="normal")
+            self._query_box.delete("1.0", "end")
+            self._query_box.insert("1.0", text)
+            self._query_box.config(state="disabled")
+        else:
+            self._query_frame.pack_forget()
 
     # ── History tab ───────────────────────────────────────────────────────────
 
