@@ -136,8 +136,8 @@ def main():
         created_at = None
         if diary_date:
             try:
-                # Add current time to the user-specified date to make it a valid timestamp
-                created_at = f"{diary_date} {datetime.now().strftime('%H:%M:%S')}"
+                # Add current time to the user-specified date using true ISO format (with T)
+                created_at = f"{diary_date}T{datetime.now().strftime('%H:%M:%S')}"
             except Exception:
                 pass
                 
