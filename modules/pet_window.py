@@ -519,7 +519,7 @@ class DesktopPet:
 
     # ── Reminder popup ────────────────────────────────────────────────────────
 
-    def show_reminder_popup(self, message: str):
+    def show_reminder_popup(self, rid: int, message: str):
         self.sprite.set_state("happy")
         self.show_bubble(f"⏰ {message[:20]}", duration=5)
 
@@ -529,14 +529,20 @@ class DesktopPet:
         popup.config(bg=C["bg"])
         popup.attributes("-topmost", True)
 
+        def mark_done():
+            from modules.database import mark_reminder_done
+            mark_reminder_done(rid)
+            popup.destroy()
+            self._refresh_reminders()
+
         tk.Label(popup, text="⏰  提醒时间到啦！",
                  font=FONT_LG, bg=C["bg"], fg=C["accent"]).pack(pady=(20, 8))
         tk.Label(popup, text=message, font=FONT,
                  bg=C["bg"], fg=C["text"], wraplength=300, justify="center").pack(padx=20)
-        tk.Button(popup, text="  好的，知道了 ✓  ",
+        tk.Button(popup, text="  好的，知道了 ✓ (标记完成)  ",
                   font=FONT, bg=C["success"], fg=C["bg"],
                   relief="flat", padx=8, pady=6,
-                  command=popup.destroy).pack(pady=20)
+                  command=mark_done).pack(pady=20)
 
     # ── Main panel ────────────────────────────────────────────────────────────
 

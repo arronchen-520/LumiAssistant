@@ -167,8 +167,8 @@ def main():
 
     # ── Reminder Scheduler ────────────────────────────────────────────────────
 
-    def on_reminder_fire(message: str):
-        pet.root.after(0, lambda: pet.show_reminder_popup(message))
+    def on_reminder_fire(rid: int, message: str):
+        pet.root.after(0, lambda: pet.show_reminder_popup(rid, message))
 
     scheduler = ReminderScheduler(on_reminder_callback=on_reminder_fire)
     scheduler.start()
