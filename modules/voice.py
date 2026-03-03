@@ -65,7 +65,12 @@ class VoiceRecorder:
         buf      = io.BytesIO(wav_bytes)
         buf.name = "audio.wav"
 
-        kwargs: dict = dict(file=buf, model=WHISPER_MODEL, response_format="text")
+        kwargs: dict = dict(
+            file=buf,
+            model=WHISPER_MODEL,
+            response_format="text",
+            prompt="这是一段日记记录，请加上逗号、句号和问号等标点符号。"
+        )
         if language:
             kwargs["language"] = language
 
