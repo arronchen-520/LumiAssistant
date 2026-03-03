@@ -83,11 +83,12 @@ def init_db():
 
 # ── Entries ───────────────────────────────────────────────────────────────────
 
-def save_entry(raw_text: str, ai_reflection: str = "", tags: list = None) -> int:
+def save_entry(raw_text: str, ai_reflection: str = "", tags: list = None, created_at: str = None) -> int:
+    time_str = created_at or datetime.now().isoformat()
     with _db() as conn:
         cur = conn.execute(
             "INSERT INTO entries (created_at, raw_text, ai_reflection, tags) VALUES (?,?,?,?)",
-            (datetime.now().isoformat(), raw_text, ai_reflection,
+            (time_str, raw_text, ai_reflection,
              json.dumps(tags or [], ensure_ascii=False)),
         )
         return cur.lastrowid
@@ -101,6 +102,28 @@ def delete_last_entry() -> bool:
             conn.execute("DELETE FROM entries_fts WHERE rowid = ?", (row["id"],))
             return True
         return False
+
+def delete_entry_by_date(date_str: str) -> int:
+    """Deletes diary entries for a given YYYY-MM-DD date."""
+    with _db() as conn:
+        rows = conn.execute("SELECT id FROM entries WHERE date(created_at) = ?", (date_str,)).fetchall()
+        count = 0
+        for r in rows:
+            conn.execute("DELETE FROM entries WHERE id = ?", (r["id"],))
+            conn.execute("DELETE FROM entries_fts WHERE rowid = ?", (r["id"],))
+            count += 1
+        return count
+
+def update_entry_by_date(date_str: str, new_text: str) -> int:
+    """Updates the raw_text of diary entries for a given YYYY-MM-DD date."""
+    with _db() as conn:
+        rows = conn.execute("SELECT id FROM entries WHERE date(created_at) = ?", (date_str,)).fetchall()
+        count = 0
+        for r in rows:
+            conn.execute("UPDATE entries SET raw_text = ? WHERE id = ?", (new_text, r["id"]))
+            conn.execute("UPDATE entries_fts SET raw_text = ? WHERE rowid = ?", (new_text, r["id"]))
+            count += 1
+        return count
 
 # ── Persona ───────────────────────────────────────────────────────────────────
 
@@ -235,6 +258,16 @@ def get_reminders_by_date(start: str, end: str) -> list[dict]:
             (start, end),
         ).fetchall()
     return [{"id": r["id"], "time": r["remind_at"][:16], "message": r["message"]} for r in rows]
+
+def delete_reminder_by_keyword(keyword: str) -> int:
+    with _db() as conn:
+        cur = conn.execute("DELETE FROM reminders WHERE message LIKE ?", (f"%{keyword}%",))
+        return cur.rowcount
+
+def update_reminder_by_keyword(keyword: str, new_time: str) -> int:
+    with _db() as conn:
+        cur = conn.execute("UPDATE reminders SET remind_at = ? WHERE message LIKE ?", (new_time, f"%{keyword}%"))
+        return cur.rowcount
 
 def mark_reminder_done(rid: int):
     with _db() as conn:

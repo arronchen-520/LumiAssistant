@@ -69,13 +69,33 @@ def main():
 
         # ── Commands ──
         if input_type == "command":
-            action = result.get("command_action")
-            if action == "delete_last":
-                from modules.database import delete_last_entry
-                deleted = delete_last_entry()
-                result["reflection"] = "🗑️ 已为你删除上一条日记。" if deleted else "没有可以删除的日记哦。"
-            else:
-                result["reflection"] = f"收到命令：{action}（抱歉，我还不知道怎么执行这个呢）"
+            commands = result.get("command_list", [])
+            from modules.database import (
+                delete_last_entry, delete_entry_by_date, update_entry_by_date,
+                delete_reminder_by_keyword, update_reminder_by_keyword
+            )
+            messages = []
+            for cmd in commands:
+                action = cmd.get("action")
+                if action == "delete_last_entry":
+                    success = delete_last_entry()
+                    messages.append("🗑️ 已为你删除上一条日记。" if success else "没有可以删除的日记哦。")
+                elif action == "delete_entry_by_date":
+                    count = delete_entry_by_date(cmd.get("target_date"))
+                    messages.append(f"🗑️ 已删除了 {count} 条日记。" if count else "没有找到那天的日记。")
+                elif action == "update_entry_by_date":
+                    count = update_entry_by_date(cmd.get("target_date"), cmd.get("new_text"))
+                    messages.append(f"✅ 已更新了日记内容。" if count else "没有找到那天的日记。")
+                elif action == "delete_reminder":
+                    count = delete_reminder_by_keyword(cmd.get("target_keyword"))
+                    messages.append(f"🗑️ 已删除了相关提醒。" if count else "没有找到该提醒。")
+                elif action == "update_reminder":
+                    count = update_reminder_by_keyword(cmd.get("target_keyword"), cmd.get("new_time"))
+                    messages.append(f"✅ 已更新提醒时间。" if count else "没有找到该提醒。")
+                else:
+                    messages.append(f"收到未知的命令。")
+            
+            result["reflection"] = "\n".join(messages) if messages else "收到命令（未识别执行细节）。"
             return result
 
         # ── Persona Update ──
@@ -111,10 +131,21 @@ def main():
 
         # Save entry to SQLite
         from modules.database import save_entry
+        
+        diary_date = result.get("diary_date")
+        created_at = None
+        if diary_date:
+            try:
+                # Add current time to the user-specified date to make it a valid timestamp
+                created_at = f"{diary_date} {datetime.now().strftime('%H:%M:%S')}"
+            except Exception:
+                pass
+                
         save_entry(
             raw_text=text,
             ai_reflection=result.get("reflection") or result.get("query_answer") or "",
             tags=result.get("summary_tags", []),
+            created_at=created_at,
         )
         result["reminders"] = saved_reminders
         return result

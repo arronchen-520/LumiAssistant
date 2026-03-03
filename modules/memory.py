@@ -100,7 +100,7 @@ def _retrieve(plan: dict) -> dict:
 # ── Answer Generator ──────────────────────────────────────────────────────────
 
 _ANSWER_SYSTEM = """\
-You are 灵犀, a warm and caring AI diary companion (LumiLog · 灵犀笔记). Current time: {now}.
+You are Lumi, a warm and caring AI diary companion (LumiLog · 灵犀笔记). Current time: {now}.
 The user asked about their diary memories or upcoming schedule.
 You have been given the retrieved diary entries and reminders below.
 
@@ -121,11 +121,10 @@ def _generate_answer(question: str, retrieved: dict) -> str:
     lines: list[str] = []
     if entries:
         lines.append("=== Diary Entries ===")
-        # Increased: 15 entries (was 8), 600 chars (was 300)
-        for e in entries[:15]:
-            lines.append(f"[{e['date']}] {e['text'][:600]}")
+        for e in entries:
+            lines.append(f"[{e['date']}] {e['text']}")
             if e["reflection"]:
-                lines.append(f"  AI note: {e['reflection'][:150]}")
+                lines.append(f"  AI note: {e['reflection']}")
 
     if tasks:
         lines.append("\n=== Upcoming Reminders ===")

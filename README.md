@@ -78,12 +78,12 @@ The core design: **one LLM call** reads your input and decides what it is among 
 
 | Intent | Example User Input | What LumiLog Does | Saves to Diary? |
 |--------|--------------------|-------------------|-----------------|
-| `diary` | "Had a great gym session today!" | Writes a reflection + extracts tags | ✅ Yes |
+| `diary` | "Yesterday I had a great gym session!" | Writes reflection & extracts explicit `diary_date` | ✅ Yes |
 | `query` | "What was I stressed about last week?" | Retrieves past entries + answers | ✅ Yes |
 | `both` | "I'm tired. What's my schedule tomorrow?" | Reflection + Reminder lookup | ✅ Yes |
 | `chit-chat` | "Good morning Lumi!" | Warm quick greeting | ❌ No |
 | `brainstorm` | "I'm nervous about my interview, any tips?" | Acts as a Copilot, gives detailed advice | ❌ No |
-| `command` | "Delete my last diary entry" | Executes the app command (e.g. `delete_last`) | ❌ No |
+| `command` | "Delete yesterday's diary" or "Change my dentist reminder" | Executes app command on DB (delete/modify) | ❌ No |
 | `persona_update` | "I'm trying to diet, supervise me" | Updates long-term DB Agent Memory | ❌ No |
 
 Results appear in separate labeled boxes in the Write tab — no tab-switching needed. The `persona` table ensures your companion learns about you long-term over time.

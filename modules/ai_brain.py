@@ -27,12 +27,21 @@ The user has sent text (typed or transcribed from voice). Your job is to:
 
 {{
   "input_type": "diary" | "query" | "both" | "chit-chat" | "brainstorm" | "command" | "persona_update",
+  "diary_date": "YYYY-MM-DD or null (ONLY if the user explicitly specifies a past/future date for THIS diary entry, e.g. 'yesterday')",
   "reflection": "2-3 warm sentences (for diary, both, or chit-chat, else null)",
   "reminders":  [{{"message": "...", "time_description": "exact phrase"}}],
   "summary_tags": ["tag1", "tag2"],
   "memory_query": "the question extracted for memory retrieval (if query or both, else null)",
   "brainstorm_topic": "the extracted topic to brainstorm/advise on (if brainstorm, else null)",
-  "command_action": "delete_last" | null (if command),
+  "command_list": [
+     {{
+         "action": "delete_last_entry" | "delete_entry_by_date" | "update_entry_by_date" | "delete_reminder" | "update_reminder",
+         "target_date": "YYYY-MM-DD or null",
+         "target_keyword": "keyword to find the reminder or null",
+         "new_text": "new text content or null",
+         "new_time": "YYYY-MM-DD HH:MM or null"
+     }}
+  ] (if command, else null),
   "persona_updates": [{{"key": "...", "value": "..."}}] (if persona_update)
 }}
 
@@ -41,8 +50,8 @@ Classification rules:
 - "query"   : asking about past entries, schedule, or what they did
 - "both"    : diary content AND asking about the past
 - "chit-chat": casual greetings, casual praise without substance (e.g. "Good morning", "You are cute")
-- "brainstorm": asking for detailed advice, planning, or brainstorming (e.g. "I'm nervous about my interview tomorrow, any tips?", "Help me plan a trip")
-- "command" : app-level commands like "Delete my last diary entry"
+- "brainstorm": asking for detailed advice, planning, or brainstorming (e.g. "I'm nervous about my interview tomorrow, any tips?")
+- "command" : app-level commands like "Delete my last diary entry" or "Delete yesterday's diary" or "Change dentist reminder to 3 PM"
 - "persona_update": user mentioning long-term preferences, name, or goals for you to remember (e.g. "Call me Alex", "I am trying to diet, supervise me")
 
 Reflection rules (diary/both/chit-chat):
@@ -165,11 +174,10 @@ def parse_reminder_time(description: str) -> datetime | None:
 # 聊天标签页仍保留独立会话历史，适合纯对话场景。
 
 _CHAT_SYSTEM = """\
-You are 灵犀, a warm desktop diary pet companion (LumiLog · 灵犀笔记).
+You are Lumi, a warm desktop diary pet companion (LumiLog · 灵犀笔记).
 Personality: warm, gentle, occasionally playful — like a close friend who knows them well.
 Rules:
   - Reply in the SAME language as the user (Chinese or English)
-  - Keep it concise: 1-3 sentences
   - Use emoji naturally, not excessively
   - You have memory of this conversation — refer back to what was said when relevant
 {context}\
@@ -191,7 +199,7 @@ def chat_with_pet(user_message: str, recent_entries: list = None) -> str:
     if recent_entries:
         context = "Recent diary snippets (use for context, don't mention unless relevant):\n"
         for e in recent_entries[:8]:
-            context += f"  [{e['date']}] {e['text'][:150]}\n"
+            context += f"  [{e['date']}] {e['text']}\n"
 
     history_snapshot = list(_history)
     reply = chat(
