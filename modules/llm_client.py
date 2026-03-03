@@ -29,11 +29,11 @@ def _build_client() -> tuple[OpenAI, str]:
     elif provider == "custom":
         base_url = os.getenv("LLM_BASE_URL", "http://localhost:11434/v1")
         api_key  = os.getenv("LLM_API_KEY", "custom")
-        model    = os.getenv("LLM_MODEL", "llama3.2")
+        model    = os.getenv("LLM_MODEL", "llama3.1")
     else:  # ollama (default)
         base_url = os.getenv("LLM_BASE_URL", "http://localhost:11434/v1")
         api_key  = os.getenv("LLM_API_KEY", "ollama")
-        model    = os.getenv("LLM_MODEL") or os.getenv("OLLAMA_MODEL", "llama3.2")
+        model    = os.getenv("LLM_MODEL") or os.getenv("OLLAMA_MODEL", "llama3.1")
 
     return OpenAI(base_url=base_url, api_key=api_key), model
 
