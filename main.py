@@ -1,5 +1,5 @@
 """
-main.py — 小记 v3
+main.py — LumiLog 灵犀笔记
 Stack: OpenAI SDK → Ollama (LLM) + OpenAI SDK → Groq (Whisper STT) + SQLite
 """
 import os
@@ -33,6 +33,9 @@ def main():
     except ValueError as e:
         sys.exit(f"❌  {e}")
 
+    # Read STT language from env (default: auto-detect)
+    stt_language = os.getenv("STT_LANGUAGE", "").strip() or None
+
     # ── Callbacks wired from UI → logic ──────────────────────────────────────
 
     def on_record_start():
@@ -43,7 +46,7 @@ def main():
         if not wav:
             return ""
         print("🎙️  Transcribing via Groq Whisper...")
-        text = recorder.transcribe(wav, language="zh")
+        text = recorder.transcribe(wav, language=stt_language)
         print(f"📝  {text!r}")
         return text
 
@@ -96,10 +99,11 @@ def main():
     scheduler.start()
 
     model = os.getenv("OLLAMA_MODEL", "llama3.2")
-    print(f"\n🌟  小记 v3 is running!")
+    lang  = stt_language or "auto"
+    print(f"\n🌟  LumiLog 灵犀笔记 is running!")
     print(f"    LLM : Ollama ({model})  →  localhost:11434")
-    print(f"    STT : Groq Whisper large-v3-turbo")
-    print(f"    DB  : SQLite  →  data/diary.db")
+    print(f"    STT : Groq Whisper large-v3-turbo (language={lang})")
+    print(f"    DB  : SQLite  →  data/diary.db  [FTS5 enabled]")
     print(f"\n    Click the pet to open the diary panel.")
     print(f"    Right-click for the menu.  Ctrl+C to quit.\n")
 

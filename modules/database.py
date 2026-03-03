@@ -1,6 +1,11 @@
 """
-database.py - SQLite storage with proper connection management.
-All connections are opened/closed via context managers — no leaks.
+database.py - SQLite storage with FTS5 full-text search.
+
+Improvements over v1:
+  - FTS5 virtual table for fast keyword search (replaces LIKE %keyword% brute-force)
+  - Trigger keeps FTS in sync with entries on INSERT
+  - get_entries_by_keywords() now uses FTS5 MATCH — orders-of-magnitude faster at scale
+  - All connections context-managed — no leaks
 """
 import json
 import sqlite3
@@ -17,6 +22,8 @@ def _db():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row   # access columns by name
+    # Enable FTS5 (built into Python's sqlite3 on all platforms)
+    conn.execute("PRAGMA journal_mode=WAL")
     try:
         yield conn
         conn.commit()
@@ -41,6 +48,30 @@ def init_db():
                 message    TEXT NOT NULL,
                 done       INTEGER DEFAULT 0
             );
+
+            -- FTS5 full-text search index over diary entries
+            CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(
+                raw_text,
+                ai_reflection,
+                content='entries',
+                content_rowid='id',
+                tokenize='unicode61'
+            );
+
+            -- Keep FTS in sync: populate on insert
+            CREATE TRIGGER IF NOT EXISTS entries_ai AFTER INSERT ON entries BEGIN
+                INSERT INTO entries_fts(rowid, raw_text, ai_reflection)
+                VALUES (new.id, new.raw_text, COALESCE(new.ai_reflection, ''));
+            END;
+
+            -- Rebuild FTS for any rows that existed before the trigger was created
+            -- (safe to run multiple times — INSERT OR IGNORE skips existing rowids)
+        """)
+
+        # Backfill FTS for pre-existing rows (idempotent)
+        conn.execute("""
+            INSERT OR IGNORE INTO entries_fts(rowid, raw_text, ai_reflection)
+            SELECT id, raw_text, COALESCE(ai_reflection, '') FROM entries
         """)
 
 
@@ -75,18 +106,42 @@ def get_entries_by_date(start: str, end: str) -> list[dict]:
     return [_entry_row(r) for r in rows]
 
 
-def get_entries_by_keywords(keywords: list[str], limit: int = 15) -> list[dict]:
+def get_entries_by_keywords(keywords: list[str], limit: int = 20) -> list[dict]:
+    """
+    Full-text search using FTS5 MATCH — much faster than LIKE at scale.
+    Falls back to LIKE if FTS5 table doesn't exist (e.g., old DB).
+    Increased default limit from 15 → 20.
+    """
     if not keywords:
         return []
-    cond   = " OR ".join(["raw_text LIKE ? OR ai_reflection LIKE ?"] * len(keywords))
-    params = [p for kw in keywords for p in (f"%{kw}%", f"%{kw}%")]
+
+    # Build FTS5 query: join keywords with OR
+    fts_query = " OR ".join(f'"{kw}"' for kw in keywords)
+
     with _db() as conn:
-        rows = conn.execute(
-            f"SELECT id, created_at, raw_text, ai_reflection, tags "
-            f"FROM entries WHERE {cond} ORDER BY created_at DESC LIMIT ?",
-            params + [limit],
-        ).fetchall()
-    return [_entry_row(r) for r in rows]
+        try:
+            rows = conn.execute(
+                """
+                SELECT e.id, e.created_at, e.raw_text, e.ai_reflection, e.tags
+                FROM entries e
+                JOIN entries_fts f ON e.id = f.rowid
+                WHERE entries_fts MATCH ?
+                ORDER BY e.created_at DESC
+                LIMIT ?
+                """,
+                (fts_query, limit),
+            ).fetchall()
+            return [_entry_row(r) for r in rows]
+        except sqlite3.OperationalError:
+            # FTS5 not available — fall back to LIKE
+            cond   = " OR ".join(["raw_text LIKE ? OR ai_reflection LIKE ?"] * len(keywords))
+            params = [p for kw in keywords for p in (f"%{kw}%", f"%{kw}%")]
+            rows = conn.execute(
+                f"SELECT id, created_at, raw_text, ai_reflection, tags "
+                f"FROM entries WHERE {cond} ORDER BY created_at DESC LIMIT ?",
+                params + [limit],
+            ).fetchall()
+            return [_entry_row(r) for r in rows]
 
 
 def _entry_row(r) -> dict:

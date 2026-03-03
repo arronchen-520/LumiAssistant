@@ -1,5 +1,5 @@
 """
-pet_window.py - Premium desktop pet UI
+pet_window.py - Premium desktop pet UI (LumiLog 灵犀笔记)
 Approach: tkinter shell (transparent window) + embedded tkinter canvas
 with programmatic pixel-art sprite rendering and smooth animation engine.
 
@@ -302,6 +302,8 @@ class DesktopPet:
         self._drag_y     = 0
         self._dragged    = False
         self._last_frame = time.time()
+        self._idle_time  = 0.0          # seconds since last interaction
+        self._IDLE_SLEEP = 600.0        # 10 min → switch to sleepy state
 
         self._build_pet_window()
         self._build_panel()
@@ -311,7 +313,7 @@ class DesktopPet:
 
     def _build_pet_window(self):
         self.root = tk.Tk()
-        self.root.title("小记")
+        self.root.title("灵犀笔记")
         self.root.overrideredirect(True)
         self.root.attributes("-topmost", True)
         self.root.attributes("-alpha", 0.95)
@@ -336,7 +338,7 @@ class DesktopPet:
 
         # Name tag below pet
         self.name_tag = tk.Label(
-            self.root, text="✦ 小记 ✦",
+            self.root, text="✦ 灵犀 ✦",
             font=("Segoe UI", 8, "bold"),
             bg="black", fg=C["accent"],
         )
@@ -361,14 +363,20 @@ class DesktopPet:
                              bg=C["card"], fg=C["text"],
                              activebackground=C["accent"],
                              font=FONT)
-        self._menu.add_command(label="📖 日记面板",    command=self._toggle_panel)
+        self._menu.add_command(label="📖 灵犀笔记",    command=self._toggle_panel)
         self._menu.add_command(label="🎙️ 开始录音",   command=self._toggle_record)
         self._menu.add_separator()
         self._menu.add_command(label="😴 切换休眠",   command=lambda: self.sprite.set_state("sleepy"))
         self._menu.add_command(label="😊 切换开心",   command=lambda: self.sprite.set_state("happy"))
-        self._menu.add_command(label="🙂 普通状态",   command=lambda: self.sprite.set_state("idle"))
+        self._menu.add_command(label="🙂 普通状态",   command=lambda: self._reset_idle())
         self._menu.add_separator()
         self._menu.add_command(label="❌ 退出",        command=self._quit)
+
+    def _reset_idle(self):
+        """Call on any user interaction to reset idle timer and restore idle state."""
+        self._idle_time = 0.0
+        if self.sprite.state == "sleepy":
+            self.sprite.set_state("idle")
 
     def _animate(self):
         now = time.time()
@@ -383,6 +391,15 @@ class DesktopPet:
             self._bubble_timer -= dt
             if self._bubble_timer <= 0:
                 self._clear_bubble()
+
+        # Idle auto-sleep: if no interaction for _IDLE_SLEEP seconds → sleepy
+        if self.sprite.state == "idle":
+            self._idle_time += dt
+            if self._idle_time >= self._IDLE_SLEEP:
+                self.sprite.set_state("sleepy")
+        elif self.sprite.state != "sleepy":
+            # Any non-idle active state resets the idle counter
+            self._idle_time = 0.0
 
         self.root.after(33, self._animate)  # ~30 fps
 
@@ -424,6 +441,7 @@ class DesktopPet:
     # ── Drag logic ────────────────────────────────────────────────────────────
 
     def _on_press(self, event):
+        self._reset_idle()
         self._drag_x = event.x
         self._drag_y = event.y
         self._dragged = False
@@ -447,6 +465,7 @@ class DesktopPet:
     # ── Recording ─────────────────────────────────────────────────────────────
 
     def _toggle_record(self):
+        self._reset_idle()
         if not self._recording:
             self._recording = True
             self.sprite.set_state("talking")
@@ -494,7 +513,7 @@ class DesktopPet:
 
     def _build_panel(self):
         self.panel = tk.Toplevel(self.root)
-        self.panel.title("小记 — AI 日记本")
+        self.panel.title("灵犀笔记 — AI 日记本")
         self.panel.geometry("520x680")
         self.panel.minsize(480, 600)
         self.panel.config(bg=C["bg"])
@@ -507,7 +526,7 @@ class DesktopPet:
 
         tk.Label(hdr, text="✦", font=("Segoe UI", 16),
                  bg=C["card"], fg=C["accent"]).pack(side="left", padx=(16, 4))
-        tk.Label(hdr, text="小记 AI 日记本",
+        tk.Label(hdr, text="灵犀笔记 AI 日记本",
                  font=FONT_XL, bg=C["card"], fg=C["text"]).pack(side="left")
 
         # Record button in header
@@ -542,11 +561,11 @@ class DesktopPet:
     # ── Write tab ─────────────────────────────────────────────────────────────
 
     def _build_write_tab(self, parent):
-        pad = dict(padx=14, pady=4)
+        padx = 14  # shared horizontal padding
 
         # Recording controls
         rec_frame = tk.Frame(parent, bg=C["bg"])
-        rec_frame.pack(fill="x", **pad, pady=(14, 4))
+        rec_frame.pack(fill="x", padx=padx, pady=(14, 4))
 
         self._rec_btn = tk.Button(
             rec_frame, text="🎙️  开始录音",
@@ -564,11 +583,11 @@ class DesktopPet:
 
         # Separator
         sep = tk.Frame(parent, bg=C["card2"], height=1)
-        sep.pack(fill="x", padx=14, pady=6)
+        sep.pack(fill="x", padx=padx, pady=6)
 
         # Text entry
         tk.Label(parent, text="日记内容", font=FONT_SM,
-                 bg=C["bg"], fg=C["muted"]).pack(anchor="w", **pad)
+                 bg=C["bg"], fg=C["muted"]).pack(anchor="w", padx=padx, pady=4)
 
         self._entry_text = scrolledtext.ScrolledText(
             parent, height=9,
@@ -601,7 +620,7 @@ class DesktopPet:
         sep2 = tk.Frame(parent, bg=C["card2"], height=1)
         sep2.pack(fill="x", padx=14, pady=6)
 
-        tk.Label(parent, text="✦ 小记的反思", font=FONT_SM,
+        tk.Label(parent, text="✦ 灵犀的反思", font=FONT_SM,
                  bg=C["bg"], fg=C["accent"]).pack(anchor="w", padx=14)
 
         self._reflection_box = scrolledtext.ScrolledText(
@@ -614,6 +633,7 @@ class DesktopPet:
         self._reflection_box.pack(fill="both", padx=14, pady=(2, 14))
 
     def _toggle_record_panel(self):
+        self._reset_idle()
         if not self._recording:
             self._recording = True
             self._rec_btn.config(text="⏹  停止录音", bg=C["error"])
@@ -639,6 +659,7 @@ class DesktopPet:
             self._entry_text.insert("end", ("\n" if cur else "") + text)
 
     def _save_entry(self):
+        self._reset_idle()
         text = self._entry_text.get("1.0", "end-1c").strip()
         if not text:
             messagebox.showwarning("提示", "日记内容为空哦 ✦")
@@ -836,9 +857,10 @@ class DesktopPet:
                  font=("Segoe UI", 8), bg=C["bg"], fg=C["muted"],
                  wraplength=480).pack(padx=14, pady=(0, 8))
 
-        self._append_chat("小记", "你好呀！我是小记 ✦ 可以和我聊天、或者问我你之前的日记记录哦～")
+        self._append_chat("灵犀", "你好呀！我是灵犀 ✦ 可以和我聊天、或者问我你之前的日记记录哦～")
 
     def _send_chat(self):
+        self._reset_idle()
         msg = self._chat_input.get().strip()
         if not msg:
             return
@@ -852,7 +874,7 @@ class DesktopPet:
         threading.Thread(target=do, daemon=True).start()
 
     def _on_chat_reply(self, reply: str):
-        self._append_chat("小记", reply)
+        self._append_chat("灵犀", reply)
         self.sprite.set_state("happy")
         self.show_bubble(reply[:25] + "...", duration=4)
 
@@ -869,6 +891,7 @@ class DesktopPet:
     # ── Panel helpers ─────────────────────────────────────────────────────────
 
     def _toggle_panel(self):
+        self._reset_idle()
         if self.panel.winfo_viewable():
             self._hide_panel()
         else:

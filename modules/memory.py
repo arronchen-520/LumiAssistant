@@ -7,12 +7,11 @@ Pipeline:
     → SQLite retrieval (date range / keyword / tasks)
     → llm_client (answer generator, temp=0.7) → warm natural reply
 
-Design notes:
-  - Uses shared llm_client (OpenAI SDK → Ollama) — no raw requests
-  - is_memory_query() is a cheap keyword pre-filter to skip the planner
-    for obvious casual chat. The planner itself is the final arbiter.
-  - RAG / embeddings would slot in here as a third retrieval strategy
-    when neither date nor keyword search finds anything useful.
+Improvements over v1:
+  - Doubled entry text passed to answer generator (300 → 600 chars)
+  - Increased max entries in answer context (8 → 15)
+  - Richer planner hints (more English/Chinese date keywords)
+  - Rebranded to 灵犀
 """
 
 import json
@@ -29,7 +28,7 @@ from modules.database import (
 # ── Query Planner ─────────────────────────────────────────────────────────────
 
 _PLANNER_SYSTEM = """\
-You are a query planner for a personal diary app. Current datetime: {now}.
+You are a query planner for a personal diary app (LumiLog · 灵犀笔记). Current datetime: {now}.
 
 Analyze the user's message and output ONLY valid JSON — no markdown, no explanation:
 {{
@@ -41,14 +40,21 @@ Analyze the user's message and output ONLY valid JSON — no markdown, no explan
 }}
 
 query_type rules:
-  "date_range"   — user mentions a specific time period (yesterday, last week, 上周, 昨天, 3 days ago, March 15)
-  "keyword"      — user asks about a topic with no clear date (gym, stress, work, 健身, 压力)
-  "tasks"        — user asks about upcoming schedule/reminders/todos (next week, 下周, what do I have)
+  "date_range"   — user mentions a specific time period
+                   (yesterday, today, last week, last month, this week, this month,
+                    昨天, 今天, 上周, 上个月, 本周, 本月, 3 days ago, March 15)
+  "keyword"      — user asks about a topic with no clear date
+                   (gym, stress, work, project, meeting, 健身, 压力, 工作, 项目)
+  "tasks"        — user asks about upcoming schedule/reminders/todos
+                   (next week, tomorrow, what do I have, what's coming up,
+                    下周, 明天, 接下来, 有什么安排, 待办)
   "general_chat" — everything else (greetings, advice, opinions, how-are-you)
 
 Other rules:
   - Compute exact YYYY-MM-DD dates relative to the current datetime above
-  - For "昨天" → date_start = date_end = yesterday's date
+  - For "昨天" / "yesterday" → date_start = date_end = yesterday's date
+  - For "上周" / "last week"  → date_start = Monday, date_end = Sunday of last week
+  - For "本周" / "this week"  → date_start = this Monday, date_end = today
   - summary_mode = true when user wants an overview; false when searching for something specific
   - keywords: extract in original language (keep Chinese characters)
   - If unsure, prefer "date_range" or "keyword" over "general_chat"\
@@ -107,7 +113,7 @@ def _retrieve(plan: dict) -> dict:
 # ── Answer Generator ──────────────────────────────────────────────────────────
 
 _ANSWER_SYSTEM = """\
-You are 小记, a warm and caring AI diary companion. Current time: {now}.
+You are 灵犀, a warm and caring AI diary companion (LumiLog · 灵犀笔记). Current time: {now}.
 The user asked about their diary memories or upcoming schedule.
 You have been given the retrieved diary entries and reminders below.
 
@@ -128,10 +134,11 @@ def _generate_answer(question: str, retrieved: dict) -> str:
     lines: list[str] = []
     if entries:
         lines.append("=== Diary Entries ===")
-        for e in entries[:8]:
-            lines.append(f"[{e['date']}] {e['text'][:300]}")
+        # Increased: 15 entries (was 8), 600 chars (was 300)
+        for e in entries[:15]:
+            lines.append(f"[{e['date']}] {e['text'][:600]}")
             if e["reflection"]:
-                lines.append(f"  AI note: {e['reflection'][:100]}")
+                lines.append(f"  AI note: {e['reflection'][:150]}")
 
     if tasks:
         lines.append("\n=== Upcoming Reminders ===")
@@ -152,15 +159,16 @@ def _generate_answer(question: str, retrieved: dict) -> str:
 # ── Public interface ──────────────────────────────────────────────────────────
 
 # Cheap keyword pre-filter — avoids calling the planner for obvious casual chat.
-# The planner is the real arbiter; this just reduces unnecessary LLM calls.
 _MEMORY_HINTS = {
     # Chinese
-    "昨天", "前天", "上周", "上个月", "那天", "之前", "记得", "做了什么",
-    "发生了什么", "下周", "任务", "提醒", "安排", "计划", "待办", "什么时候",
-    "有没有", "日记", "记录", "找找", "几天前",
+    "昨天", "前天", "今天", "上周", "本周", "上个月", "本月", "那天", "之前", "记得",
+    "做了什么", "发生了什么", "下周", "明天", "任务", "提醒", "安排", "计划", "待办",
+    "什么时候", "有没有", "日记", "记录", "找找", "几天前", "有什么", "接下来",
     # English
-    "yesterday", "last week", "last month", "last year", "remind",
-    "schedule", "what did i", "when did", "diary", "journal",
+    "yesterday", "today", "last week", "this week", "last month", "this month",
+    "last year", "remind", "schedule", "what did i", "what have i", "when did",
+    "diary", "journal", "tomorrow", "next week", "what's coming", "what do i have",
+    "tell me about", "when was", "what was",
 }
 
 
@@ -188,9 +196,8 @@ def answer_memory_query(question: str, recent_entries: list = None) -> str | Non
         return _generate_answer(question, retrieved)
 
     except Exception as e:
-        # Surface Ollama connection errors cleanly; swallow the rest
         msg = str(e)
         if "ollama" in msg.lower() or "connection" in msg.lower():
-            return f"⚠️ Can't reach Ollama — is it running? (`ollama serve`)"
+            return "⚠️ Can't reach Ollama — is it running? (`ollama serve`)"
         print(f"[Memory] unexpected error: {e}")
         return "Sorry, I had trouble searching your memories just now 🌙"
