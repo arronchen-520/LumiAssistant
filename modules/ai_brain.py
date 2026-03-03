@@ -1,14 +1,3 @@
-"""
-ai_brain.py — 核心 AI：统一输入处理 · 时间解析 · 聊天路由
-
-关键设计理念 (Unified Input Architecture):
-  传统流程: 录音 → 存储日记 | 聊天 → 查询记忆  (两条独立路径)
-  新流程:   录音 → 单次 LLM 调用同时判断意图
-              → 如果是日记: 反思 + 提醒 + 标签
-              → 如果是记忆查询: 查询 SQLite + 生成回答
-              → 如果两者兼有: 全部处理，一次性回复
-  结果: 用户说"我今天很累，顺便我上周都做了什么？" → 存储情绪 + 回答记忆查询
-"""
 import json
 import re
 from collections import deque
@@ -29,7 +18,7 @@ def clear_history():
 # ── 统一输入处理系统提示 (Unified Input Processing) ───────────────────────────
 
 _UNIFIED_SYSTEM = """\
-You are 灵犀, the user's personal AI diary companion (LumiLog · 灵犀笔记).
+You are Lumi, the user's personal AI diary companion (LumiLog · 灵犀笔记).
 Current time: {now}.
 
 The user has sent text (typed or transcribed from voice). Your job is to:
@@ -87,8 +76,8 @@ def process_input(text: str, context_entries: list = None) -> dict:
     context = ""
     if context_entries:
         context = "\nRecent diary context:\n"
-        for e in context_entries[:5]:
-            context += f"  [{e['date']}] {e['text'][:200]}\n"
+        for e in context_entries:
+            context += f"  [{e['date']}] {e['text']}\n"
 
     raw = chat(
         _UNIFIED_SYSTEM.format(now=now, persona=persona_str),
@@ -117,7 +106,7 @@ def process_input(text: str, context_entries: list = None) -> dict:
     if input_type == "brainstorm":
         topic = result.get("brainstorm_topic") or text
         sys_prompt = (
-            f"You are 灵犀, a helpful AI companion. The user wants to brainstorm or needs advice on: {topic}.\n"
+            f"You are Lumi, a helpful AI companion. The user wants to brainstorm or needs advice on: {topic}.\n"
             f"Provide a thoughtful, structured, and helpful response. Be encouraging and practical.\n"
             f"User Persona info:\n{persona_str}"
         )

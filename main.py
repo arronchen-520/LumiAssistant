@@ -55,7 +55,7 @@ def main():
         统一输入处理: 单次 LLM 调用同时判断意图，支持 7 种 input_type
         Unified input processing: 7 intents supported in one shot.
         """
-        recent = get_entries(limit=10)
+        recent = get_entries(limit=7)
         print("🤖  Processing input (unified intent detection)...")
         result = process_input(text, context_entries=recent)
 

@@ -1,19 +1,3 @@
-"""
-memory.py - LLM-powered memory system.
-
-Pipeline:
-  user question
-    → llm_client (query planner, temp=0) → structured JSON plan
-    → SQLite retrieval (date range / keyword / tasks)
-    → llm_client (answer generator, temp=0.7) → warm natural reply
-
-Improvements over v1:
-  - Doubled entry text passed to answer generator (300 → 600 chars)
-  - Increased max entries in answer context (8 → 15)
-  - Richer planner hints (more English/Chinese date keywords)
-  - Rebranded to 灵犀
-"""
-
 import json
 import re
 from datetime import datetime, timedelta
@@ -23,6 +7,7 @@ from modules.database import (
     get_entries_by_date,
     get_entries_by_keywords,
     get_upcoming_reminders_window,
+    get_reminders_by_date,
 )
 
 # ── Query Planner ─────────────────────────────────────────────────────────────
@@ -56,7 +41,7 @@ Other rules:
   - For "上周" / "last week"  → date_start = Monday, date_end = Sunday of last week
   - For "本周" / "this week"  → date_start = this Monday, date_end = today
   - summary_mode = true when user wants an overview; false when searching for something specific
-  - keywords: extract in original language (keep Chinese characters)
+  - keywords: extract in original language
   - If unsure, prefer "date_range" or "keyword" over "general_chat"\
 """
 
@@ -96,9 +81,11 @@ def _retrieve(plan: dict) -> dict:
             entries = get_entries_by_date(start, end or start)
 
     elif qtype == "tasks":
-        tasks = get_upcoming_reminders_window(days=30)
-        if start:                             # also grab diary entries for that period
+        if start:
+            tasks = get_reminders_by_date(start, end or start)
             entries = get_entries_by_date(start, end or start)
+        else:
+            tasks = get_upcoming_reminders_window(days=30)
 
     # Deduplicate entries (can appear from both date + keyword paths)
     seen, unique = set(), []

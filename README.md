@@ -58,8 +58,8 @@ You:    "I'm exhausted. Also, what did I do last week?"
 
 ## Features
 
-### 🐾 Desktop Pet — Now with ✦ Star & Paws
-An animated chibi companion drawn entirely with geometry — no image files. New design: rounder head, glassy layered eyes, star hair accessory that pulses, paws and curly tail.
+### 🐾 Desktop Pet — Holo-Fox Cyper-Pet
+An animated companion drawn entirely with geometry — no image files. New design: sleek glassmorphic body, glowing neon wireframe borders, detached floating holographic ears, and a data-stream tail.
 
 ```
 idle       →  breathing sway, random blinks

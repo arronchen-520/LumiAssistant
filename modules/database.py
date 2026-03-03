@@ -227,6 +227,14 @@ def get_upcoming_reminders_window(days: int = 30) -> list[dict]:
         ).fetchall()
     return [{"id": r["id"], "time": r["remind_at"][:16], "message": r["message"]} for r in rows]
 
+def get_reminders_by_date(start: str, end: str) -> list[dict]:
+    with _db() as conn:
+        rows = conn.execute(
+            "SELECT id, remind_at, message FROM reminders "
+            "WHERE date(remind_at) >= ? AND date(remind_at) <= ? AND done = 0 ORDER BY remind_at ASC",
+            (start, end),
+        ).fetchall()
+    return [{"id": r["id"], "time": r["remind_at"][:16], "message": r["message"]} for r in rows]
 
 def mark_reminder_done(rid: int):
     with _db() as conn:
