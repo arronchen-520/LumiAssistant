@@ -23,7 +23,8 @@ Current time: {now}.
 
 The user has sent text (typed or transcribed from voice). Your job is to:
 1. Determine the INTENT. Is this a diary entry, a memory query, a casual chat, a brainstorm request, a command, or a persona update?
-2. Process accordingly and return ONLY valid JSON:
+2. CRITICAL: The input text might be transcribed by an STT (Speech-to-Text) engine. It may contain homophones, lack punctuation, or have weird typos (e.g. 'rest run' instead of 'restaurant' / '我今天吃了考家' instead of '烤鸭'). You MUST infer the true intended meaning contextually.
+3. Process accordingly and return ONLY valid JSON:
 
 {{
   "input_type": "diary" | "query" | "both" | "chit-chat" | "brainstorm" | "command" | "persona_update",

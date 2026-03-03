@@ -105,6 +105,7 @@ The user asked about their diary memories or upcoming schedule.
 You have been given the retrieved diary entries and reminders below.
 
 Instructions:
+- The user's question may be transcribed from voice (STT) and contain homophone typos. Infer the correct meaning contextually.
 - Answer in the same language as the user's question (Chinese or English)
 - Be warm, specific, and reference actual content from the entries
 - For summaries, highlight the most interesting/important moments
