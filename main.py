@@ -52,8 +52,8 @@ def main():
 
     def on_save_entry(text: str) -> dict:
         """
-        统一输入处理: 单次 LLM 调用同时判断意图（日记/记忆查询/两者）。
-        Unified input processing: one LLM call handles diary + memory query.
+        统一输入处理: 单次 LLM 调用同时判断意图，支持 7 种 input_type
+        Unified input processing: 7 intents supported in one shot.
         """
         recent = get_entries(limit=10)
         print("🤖  Processing input (unified intent detection)...")
@@ -67,7 +67,36 @@ def main():
         if result.get("reflection"):
             print(f"    reflection: {result['reflection'][:60]!r}")
 
-        # 提醒解析与存储
+        # ── Commands ──
+        if input_type == "command":
+            action = result.get("command_action")
+            if action == "delete_last":
+                from modules.database import delete_last_entry
+                deleted = delete_last_entry()
+                result["reflection"] = "🗑️ 已为你删除上一条日记。" if deleted else "没有可以删除的日记哦。"
+            else:
+                result["reflection"] = f"收到命令：{action}（抱歉，我还不知道怎么执行这个呢）"
+            return result
+
+        # ── Persona Update ──
+        if input_type == "persona_update":
+            from modules.database import upsert_persona
+            updates = result.get("persona_updates", [])
+            for u in updates:
+                k, v = u.get("key"), u.get("value")
+                if k and v:
+                    upsert_persona(k, v)
+                    print(f"    🧠  persona: {k} = {v}")
+            result["reflection"] = "📝 我已经悄悄记在心里啦！"
+            return result
+
+        # ── Chit-chat / Brainstorm ──
+        # Do NOT save these transient interactions to the diary database
+        if input_type in ("chit-chat", "brainstorm"):
+            return result
+
+        # ── Diary / Query / Both ──
+        # Parse reminders if present
         saved_reminders = []
         for r in result.get("reminders", []):
             msg  = r.get("message", "").strip()
@@ -75,11 +104,13 @@ def main():
             if msg and desc:
                 dt = parse_reminder_time(desc)
                 if dt:
+                    from modules.database import save_reminder
                     save_reminder(dt, msg)
                     saved_reminders.append({"message": msg})
                     print(f"    ⏰  reminder: {msg!r} @ {dt}")
 
-        # 无论是日记还是查询，都存储原始输入
+        # Save entry to SQLite
+        from modules.database import save_entry
         save_entry(
             raw_text=text,
             ai_reflection=result.get("reflection") or result.get("query_answer") or "",

@@ -72,21 +72,21 @@ sleepy     →  Zzz bubbles after 10 min idle, auto-wakes on any touch
 ### 🎙️ Voice-First, ~1 Second Transcription
 Hit record. Talk in Chinese, English, Japanese, or mix freely. [Groq Whisper](https://console.groq.com) transcribes in about one second — auto-detects language by default. No setup required.
 
-### 🧠 Unified Intent Detection — Diary + Memory in One Shot
+### 🧠 Unified Intent Detection — 7 Intents in One Shot
 
-The key design: **one LLM call** reads your input and decides what it is.
+The core design: **one LLM call** reads your input and decides what it is among 7 different intents. Transient interactions (like chatting) aren't saved to your diary database.
 
-- Sharing your day → reflection + tag extraction  
-- Asking a question → memory retrieval answer  
-- Both in the same sentence → both, simultaneously  
+| Intent | Example User Input | What LumiLog Does | Saves to Diary? |
+|--------|--------------------|-------------------|-----------------|
+| `diary` | "Had a great gym session today!" | Writes a reflection + extracts tags | ✅ Yes |
+| `query` | "What was I stressed about last week?" | Retrieves past entries + answers | ✅ Yes |
+| `both` | "I'm tired. What's my schedule tomorrow?" | Reflection + Reminder lookup | ✅ Yes |
+| `chit-chat` | "Good morning Lumi!" | Warm quick greeting | ❌ No |
+| `brainstorm` | "I'm nervous about my interview, any tips?" | Acts as a Copilot, gives detailed advice | ❌ No |
+| `command` | "Delete my last diary entry" | Executes the app command (e.g. `delete_last`) | ❌ No |
+| `persona_update` | "I'm trying to diet, supervise me" | Updates long-term DB Agent Memory | ❌ No |
 
-```
-"Had a great gym session today!"           → diary reflection
-"What was I stressed about last week?"     → memory retrieval
-"I'm tired. What's my schedule tomorrow?"  → diary + reminder lookup
-```
-
-Results appear in separate labeled boxes in the Write tab — no tab-switching needed.
+Results appear in separate labeled boxes in the Write tab — no tab-switching needed. The `persona` table ensures your companion learns about you long-term over time.
 
 ### 🔌 Choose Your LLM — Ollama, Groq, OpenAI, or Custom
 

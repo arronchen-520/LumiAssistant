@@ -33,53 +33,55 @@ You are 灵犀, the user's personal AI diary companion (LumiLog · 灵犀笔记)
 Current time: {now}.
 
 The user has sent text (typed or transcribed from voice). Your job is to:
-1. Determine the INTENT: is this a diary entry, a memory query, or both?
+1. Determine the INTENT. Is this a diary entry, a memory query, a casual chat, a brainstorm request, a command, or a persona update?
 2. Process accordingly and return ONLY valid JSON:
 
 {{
-  "input_type": "diary" | "query" | "both",
-  "reflection": "2-3 warm, specific sentences (if diary or both, else null)",
-  "reminders":  [{{"message": "...", "time_description": "exact phrase from text"}}],
+  "input_type": "diary" | "query" | "both" | "chit-chat" | "brainstorm" | "command" | "persona_update",
+  "reflection": "2-3 warm sentences (for diary, both, or chit-chat, else null)",
+  "reminders":  [{{"message": "...", "time_description": "exact phrase"}}],
   "summary_tags": ["tag1", "tag2"],
-  "memory_query": "the question extracted for memory retrieval (if query or both, else null)"
+  "memory_query": "the question extracted for memory retrieval (if query or both, else null)",
+  "brainstorm_topic": "the extracted topic to brainstorm/advise on (if brainstorm, else null)",
+  "command_action": "delete_last" | null (if command),
+  "persona_updates": [{{"key": "...", "value": "..."}}] (if persona_update)
 }}
 
 Classification rules:
-- "diary"  → user is sharing feelings, events, thoughts, plans, or what happened
-- "query"  → user is asking about past entries, schedule, reminders, or what they did
-- "both"   → text contains diary content AND asks about the past
-             e.g. "I'm exhausted. What did I do last week?" → both
+- "diary"   : sharing feelings, events, thoughts, plans
+- "query"   : asking about past entries, schedule, or what they did
+- "both"    : diary content AND asking about the past
+- "chit-chat": casual greetings, casual praise without substance (e.g. "Good morning", "You are cute")
+- "brainstorm": asking for detailed advice, planning, or brainstorming (e.g. "I'm nervous about my interview tomorrow, any tips?", "Help me plan a trip")
+- "command" : app-level commands like "Delete my last diary entry"
+- "persona_update": user mentioning long-term preferences, name, or goals for you to remember (e.g. "Call me Alex", "I am trying to diet, supervise me")
 
-Reflection rules (if applicable):
-- Reply in the SAME language as the user (Chinese or English)
-- Be warm and specific — reference what they actually said
-- 2-3 sentences, with emoji used naturally not excessively
+Reflection rules (diary/both/chit-chat):
+- Reply in the SAME language as the user
+- Be warm and specific. Empathise.
+- For chit-chat, just give a warm quick reply.
 
-Reminder rules:
-- Extract ONLY explicit, time-anchored todos the user mentioned
+brainstorm_topic rules:
+- Extract the core topic the user wants advice on.
 
-memory_query rules:
-- If the user is asking about their diary, extract the question verbatim or cleaned up
-- e.g. "顺便我上周都做了啥" → "我上周做了什么？"\
+persona_updates rules:
+- Extract simple key-value pairs representing the user's profile/preferences to remember long-term.
+- E.g. {{"key": "user_name", "value": "Alex"}}, {{"key": "current_goal", "value": "eat less carbs"}}
+
+User Persona / Long-term Memory for context:
+{persona}\
 """
 
 
 def process_input(text: str, context_entries: list = None) -> dict:
-    """
-    统一入口：对用户输入做意图分类 + 日记分析 + 记忆查询（如需要）。
-
-    Returns:
-        {
-            "input_type":    "diary" | "query" | "both",
-            "reflection":    str | None,     # diary 反思
-            "query_answer":  str | None,     # memory 查询回答
-            "reminders":     list,
-            "summary_tags":  list,
-        }
-    """
     from modules.memory import answer_memory_query
+    from modules.database import get_all_personas
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    
+    # Load persona context
+    personas = get_all_personas()
+    persona_str = "\n".join(f"- {k}: {v}" for k, v in personas.items()) if personas else "None yet."
 
     # Build recent diary context for the unified prompt
     context = ""
@@ -89,7 +91,7 @@ def process_input(text: str, context_entries: list = None) -> dict:
             context += f"  [{e['date']}] {e['text'][:200]}\n"
 
     raw = chat(
-        _UNIFIED_SYSTEM.format(now=now),
+        _UNIFIED_SYSTEM.format(now=now, persona=persona_str),
         f"{context}\nUser input:\n{text}",
         temperature=0.3,
     )
@@ -101,7 +103,6 @@ def process_input(text: str, context_entries: list = None) -> dict:
     try:
         result = json.loads(raw)
     except json.JSONDecodeError:
-        # 解析失败 → 降级为纯日记反思
         result = {
             "input_type":   "diary",
             "reflection":   raw[:300] or "谢谢你今天的分享 ✨",
@@ -110,16 +111,32 @@ def process_input(text: str, context_entries: list = None) -> dict:
             "memory_query": None,
         }
 
+    input_type = result.get("input_type", "diary")
+
+    # ── Handle Brainstorm / Copilot Request ────────────────────────────────
+    if input_type == "brainstorm":
+        topic = result.get("brainstorm_topic") or text
+        sys_prompt = (
+            f"You are 灵犀, a helpful AI companion. The user wants to brainstorm or needs advice on: {topic}.\n"
+            f"Provide a thoughtful, structured, and helpful response. Be encouraging and practical.\n"
+            f"User Persona info:\n{persona_str}"
+        )
+        advice = chat(sys_prompt, text, temperature=0.7)
+        # Put the long response in query_answer so it shows up beautifully in the UI
+        result["query_answer"] = advice
+        result["reflection"] = "💡 我为你整理了一些想法，希望能帮到你！"
+        return result
+
     # ── 如果包含记忆查询，执行检索 ──────────────────────────────────────────
     query_answer = None
     memory_q = result.get("memory_query")
-    if memory_q:
+    if memory_q and input_type in ("query", "both"):
         try:
             query_answer = answer_memory_query(memory_q, context_entries)
         except Exception as e:
             query_answer = f"抱歉，记忆查询出了点问题 🌙 ({e})"
+        result["query_answer"] = query_answer
 
-    result["query_answer"] = query_answer
     return result
 
 

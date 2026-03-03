@@ -58,6 +58,12 @@ def init_db():
                 tokenize='unicode61'
             );
 
+            -- Persona table for long-term agent memory
+            CREATE TABLE IF NOT EXISTS persona (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+
             -- Keep FTS in sync: populate on insert
             CREATE TRIGGER IF NOT EXISTS entries_ai AFTER INSERT ON entries BEGIN
                 INSERT INTO entries_fts(rowid, raw_text, ai_reflection)
@@ -85,6 +91,29 @@ def save_entry(raw_text: str, ai_reflection: str = "", tags: list = None) -> int
              json.dumps(tags or [], ensure_ascii=False)),
         )
         return cur.lastrowid
+
+def delete_last_entry() -> bool:
+    """Deletes the most recent diary entry. Returns True if deleted."""
+    with _db() as conn:
+        row = conn.execute("SELECT id FROM entries ORDER BY id DESC LIMIT 1").fetchone()
+        if row:
+            conn.execute("DELETE FROM entries WHERE id = ?", (row["id"],))
+            conn.execute("DELETE FROM entries_fts WHERE rowid = ?", (row["id"],))
+            return True
+        return False
+
+# ── Persona ───────────────────────────────────────────────────────────────────
+
+def upsert_persona(key: str, value: str):
+    """Updates or inserts a persona setting for long-term agent memory."""
+    with _db() as conn:
+        conn.execute("INSERT OR REPLACE INTO persona (key, value) VALUES (?, ?)", (key, value))
+
+def get_all_personas() -> dict[str, str]:
+    """Returns all persona settings as a dictionary."""
+    with _db() as conn:
+        rows = conn.execute("SELECT key, value FROM persona").fetchall()
+        return {r["key"]: r["value"] for r in rows}
 
 
 def get_entries(limit: int = 50) -> list[dict]:
