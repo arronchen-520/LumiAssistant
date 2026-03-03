@@ -18,30 +18,32 @@ import random
 from datetime import datetime
 from typing import Callable
 
-# ── Color palette (deep night / soft glow aesthetic) ─────────────────────────
+# ── Color palette (Dark Cyber / Neon Glassmorphism) ─────────────────────────
 C = {
-    "bg":        "#0d0d1a",
-    "panel":     "#111128",
-    "card":      "#1a1a35",
-    "card2":     "#141430",
-    "accent":    "#a78bfa",   # violet
-    "accent2":   "#60a5fa",   # blue
-    "glow":      "#c4b5fd",
-    "text":      "#e2e8f0",
+    "bg":        "#09090b",   # Deep space black
+    "panel":     "#0f111a",   # Dark tech grey
+    "card":      "#131521",
+    "card2":     "#181a29",
+    "accent":    "#22d3ee",   # Neon Cyan
+    "accent2":   "#a855f7",   # Electric Purple
+    "glow":      "#818cf8",   # Indigo glow
+    "text":      "#f8fafc",   # Crisp white
     "muted":     "#64748b",
-    "success":   "#34d399",
+    "success":   "#10b981",
     "warn":      "#f59e0b",
-    "error":     "#f87171",
-    "pet_body":  "#fde68a",   # warm yellow
-    "pet_blush": "#fca5a5",
-    "pet_eye":   "#1e1b4b",
-    "pet_shine": "#ffffff",
+    "error":     "#ef4444",
+    # Holo-Fox specific
+    "holo_outline": "#38bdf8", # Light blue wireframe
+    "holo_core":    "#1e1b4b", # Dark purple inner core
+    "holo_eye":     "#67e8f9", # Glowing cyan eyes
 }
 
-FONT     = ("Segoe UI", 10)
-FONT_SM  = ("Segoe UI", 9)
-FONT_LG  = ("Segoe UI", 12, "bold")
-FONT_XL  = ("Segoe UI", 14, "bold")
+# ── Typography (Premium thin sans-serif & monospace) ───────────────────────
+# Try Segoe UI Variable Display for that Windows 11 sleekness, fallback to Segoe UI
+FONT     = ("Segoe UI Variable Display", 9)
+FONT_SM  = ("Segoe UI Variable Display", 8)
+FONT_LG  = ("Segoe UI Variable Display", 11)
+FONT_XL  = ("Segoe UI Variable Display", 14, "bold")
 FONT_MONO= ("Consolas", 9)
 
 
@@ -117,76 +119,62 @@ class PetSprite:
 
         # ── Shadow (soft) ──
         self._draw_oval(cx, cy + s(42), s(26), s(7),
-                        fill="#0a0a18", outline="", stipple="gray25")
+                        fill="#060608", outline="", stipple="gray25")
 
-        # ── Body (rounder, fluffier) ──
+        # ── Holo-Fox Body (Glassmorphism Core) ──
+        # Instead of solid colors, we use dark transparent/stippled cores with bright neon borders
         body_bounce = 1.0 + math.sin(self.t * 1.5) * 0.02
-        self._draw_oval(cx, cy + s(34), s(20), s(16) * body_bounce,
-                        fill=C["pet_body"], outline=C["pet_eye"], width=1)
-        # Belly highlight
-        self._draw_oval(cx, cy + s(32), s(10), s(8),
-                        fill="#fef9c3", outline="")
+        
+        # Outer neon aura (body)
+        self._draw_oval(cx, cy + s(30), s(18), s(15) * body_bounce,
+                        fill="", outline=C["holo_outline"], width=1.5)
+        # Inner dark core
+        self._draw_oval(cx, cy + s(30), s(16), s(13) * body_bounce,
+                        fill=C["holo_core"], outline="", stipple="gray50")
 
-        # ── Ears (angled, fluffier) ──
-        self._draw_oval(cx - s(24), cy - s(30), s(9), s(14),
-                        fill=C["pet_body"], outline=C["pet_eye"], width=1)
-        self._draw_oval(cx + s(24), cy - s(30), s(9), s(14),
-                        fill=C["pet_body"], outline=C["pet_eye"], width=1)
-        # Inner ear (pink gradient effect with two ovals)
-        self._draw_oval(cx - s(24), cy - s(30), s(5), s(9), fill="#f9a8d4", outline="")
-        self._draw_oval(cx + s(24), cy - s(30), s(5), s(9), fill="#f9a8d4", outline="")
-        # Ear tip highlight
-        self._draw_oval(cx - s(24), cy - s(40), s(3), s(3), fill="#fde68a", outline="")
-        self._draw_oval(cx + s(24), cy - s(40), s(3), s(3), fill="#fde68a", outline="")
+        # ── Holo-Ears (Floating/Detached) ──
+        # Left ear
+        pts_left = [
+            cx - s(20), cy - s(15), 
+            cx - s(30), cy - s(35), 
+            cx - s(12), cy - s(25)
+        ]
+        item = self.canvas.create_polygon(pts_left, fill=C["holo_core"], outline=C["holo_outline"], width=1.5, smooth=True)
+        self._items.append(item)
+        # Right ear
+        pts_right = [
+            cx + s(20), cy - s(15), 
+            cx + s(30), cy - s(35), 
+            cx + s(12), cy - s(25)
+        ]
+        item = self.canvas.create_polygon(pts_right, fill=C["holo_core"], outline=C["holo_outline"], width=1.5, smooth=True)
+        self._items.append(item)
 
-        # ── Head (rounder, bigger) ──
-        self._draw_oval(cx, cy, s(34), s(32),
-                        fill=C["pet_body"], outline=C["pet_eye"], width=1.5)
-        # Head top highlight
-        self._draw_oval(cx, cy - s(16), s(22), s(10), fill="#fef9c3", outline="")
+        # ── Head (Holographic Orb) ──
+        self._draw_oval(cx, cy, s(28), s(26),
+                        fill=C["holo_core"], outline=C["holo_outline"], width=1.5)
+        
+        # Internal glowing circuit/wireframe line
+        arc_item = self.canvas.create_arc(
+            cx - s(24), cy - s(24), cx + s(24), cy + s(24),
+            start=45, extent=90, style="arc", outline=C["accent"], width=2
+        )
+        self._items.append(arc_item)
 
-        # ── Star hair accessory ✦ ──
-        star_x = cx + s(20)
-        star_y = cy - s(28)
-        star_pulse = 1.0 + math.sin(self.t * 2.5) * 0.15
-        star_r = s(5) * star_pulse
-        self._draw_oval(star_x, star_y, star_r, star_r, fill=C["glow"], outline="")
-        # Star cross lines
-        for angle in [0, 45, 90, 135]:
-            rad = math.radians(angle)
-            item = self.canvas.create_line(
-                star_x + math.cos(rad) * star_r * 1.8,
-                star_y + math.sin(rad) * star_r * 1.8,
-                star_x - math.cos(rad) * star_r * 1.8,
-                star_y - math.sin(rad) * star_r * 1.8,
-                fill=C["glow"], width=1,
-            )
-            self._items.append(item)
-
-        # ── Blush ──
-        blush_stipple = "" if self.state == "happy" else "gray50"
-        self._draw_oval(cx - s(20), cy + s(9), s(9), s(5),
-                        fill=C["pet_blush"], outline="", stipple=blush_stipple)
-        self._draw_oval(cx + s(20), cy + s(9), s(9), s(5),
-                        fill=C["pet_blush"], outline="", stipple=blush_stipple)
-
-        # ── Eyes ──
+        # ── Eyes (Digital/Neon) ──
         self._draw_eyes(cx, cy)
 
-        # ── Mouth ──
-        self._draw_mouth(cx, cy)
-
-        # ── Tail (curly tuft) ──
-        self._draw_oval(cx + s(20), cy + s(46), s(8), s(6),
-                        fill=C["pet_body"], outline=C["pet_eye"], width=1)
-        self._draw_oval(cx + s(26), cy + s(42), s(5), s(4),
-                        fill=C["pet_body"], outline=C["pet_eye"], width=1)
-
-        # ── Paws ──
-        self._draw_oval(cx - s(16), cy + s(46), s(7), s(5),
-                        fill=C["pet_body"], outline=C["pet_eye"], width=1)
-        self._draw_oval(cx + s(4),  cy + s(48), s(7), s(5),
-                        fill=C["pet_body"], outline=C["pet_eye"], width=1)
+        # ── Tail (Data Stream) ──
+        tail_wave = math.sin(self.t * 3) * s(5)
+        pts_tail = [
+            cx + s(15), cy + s(35),
+            cx + s(30), cy + s(40) + tail_wave,
+            cx + s(40), cy + s(30) + tail_wave * 1.5
+        ]
+        item = self.canvas.create_line(pts_tail, fill=C["accent"], width=2.5, smooth=True)
+        self._items.append(item)
+        # Tail tip glow
+        self._draw_oval(cx + s(40), cy + s(30) + tail_wave * 1.5, s(3), s(3), fill=C["glow"], outline="")
 
         # ── State overlays ──
         if self.state == "happy":
@@ -205,49 +193,24 @@ class PetSprite:
         is_blinking = self.blink_t < 0.15
 
         if self.state == "happy":
-            # Happy crescents (^‿^)
-            for ex in [cx - s(12), cx + s(12)]:
-                self._draw_oval(ex, cy - s(1), s(10), s(7),
-                                fill=C["pet_body"], outline=C["pet_eye"], width=2)
+            # Happy crescents (^‿^) - Draw with raw lines instead of filled ovals
+            for ex in [cx - s(10), cx + s(10)]:
+                item = self.canvas.create_line(
+                    ex - s(5), cy + s(2),
+                    ex,        cy - s(3),
+                    ex + s(5), cy + s(2),
+                    fill=C["holo_eye"], width=2.5, smooth=True
+                )
+                self._items.append(item)
         elif is_blinking or self.state == "sleepy":
-            # Closed — thin horizontal oval
-            for ex in [cx - s(12), cx + s(12)]:
-                self._draw_oval(ex, cy - s(3), s(9), s(3),
-                                fill=C["pet_eye"], outline="")
+            # Closed — thin glowing horizontal line
+            self.canvas.create_line(cx - s(15), cy, cx - s(5), cy, fill=C["holo_eye"], width=2)
+            self.canvas.create_line(cx + s(5),  cy, cx + s(15), cy, fill=C["holo_eye"], width=2)
         else:
-            # Open eyes — bigger, rounder, more glassy
+            # Open eyes — glowing vertical digital bars (like EVE or a robot)
             for ex in [cx - s(12), cx + s(12)]:
-                # Iris
-                self._draw_oval(ex, cy - s(3), s(9), s(10),
-                                fill="#312e81", outline="")
-                # Pupil
-                self._draw_oval(ex, cy - s(2), s(5), s(6),
-                                fill=C["pet_eye"], outline="")
-                # Main shine
-                self._draw_oval(ex + s(3.5), cy - s(7), s(3), s(3),
-                                fill="white", outline="")
-                # Small secondary shine
-                self._draw_oval(ex - s(2.5), cy + s(1), s(1.5), s(1.5),
-                                fill="#c4b5fd", outline="")
-
-    def _draw_mouth(self, cx, cy):
-        s = self._s
-        if self.state == "happy":
-            pts = [cx - s(10), cy + s(14),
-                   cx,          cy + s(20),
-                   cx + s(10),  cy + s(14)]
-            item = self.canvas.create_line(pts, fill=C["pet_eye"], width=2, smooth=True)
-            self._items.append(item)
-        elif self.state == "sleepy":
-            self._draw_oval(cx, cy + s(16), s(6), s(4),
-                            fill=C["pet_eye"], outline="")
-        else:
-            # Neutral small smile
-            pts = [cx - s(7), cy + s(14),
-                   cx,         cy + s(17),
-                   cx + s(7),  cy + s(14)]
-            item = self.canvas.create_line(pts, fill=C["pet_eye"], width=1.5, smooth=True)
-            self._items.append(item)
+                self._draw_rect(ex - s(3), cy - s(6), ex + s(3), cy + s(6), r=s(3),
+                                fill=C["holo_eye"], outline=C["glow"], width=1)
 
     def _draw_sparkles(self, cx, cy):
         s = self._s
@@ -260,7 +223,7 @@ class PetSprite:
             y = cy + s(dy) + math.sin(phase + i) * s(3)
             if alpha > 0.3:
                 self._draw_oval(x, y, size, size, fill=C["glow"], outline="")
-                # Star points
+                # Star/cross points
                 for angle in [0, 90]:
                     rad = math.radians(angle)
                     item = self.canvas.create_line(
@@ -281,7 +244,7 @@ class PetSprite:
                 font_size = 8 + i * 2
                 item = self.canvas.create_text(
                     x, y, text=char,
-                    font=("Segoe UI", font_size, "bold"),
+                    font=("Segoe UI Variable Display", font_size, "bold"),
                     fill=C["accent2"]
                 )
                 self._items.append(item)
@@ -291,39 +254,45 @@ class PetSprite:
         phase = int(self.t * 3) % 3
         for i in range(3):
             color = C["accent"] if i == phase else C["muted"]
-            self._draw_oval(cx + s(-10 + i * 10), cy - s(48), s(3.5), s(3.5),
+            self._draw_rect(cx + s(-12 + i * 12) - s(3), cy - s(48) - s(3), 
+                            cx + s(-12 + i * 12) + s(3), cy - s(48) + s(3), r=s(1),
                             fill=color, outline="")
 
     def _draw_waveform(self, cx, cy):
         """Animated waveform bars during voice recording (listening state)."""
         s = self._s
         bars = 5
-        bar_w = s(4)
-        gap = s(2)
+        bar_w = s(3)
+        gap = s(3)
         total_w = bars * bar_w + (bars - 1) * gap
         x0 = cx - total_w / 2
         for i in range(bars):
-            h = s(4 + 8 * abs(math.sin(self.t * 4 + i * 0.8)))
+            h = s(5 + 10 * abs(math.sin(self.t * 5 + i * 0.8)))
             x = x0 + i * (bar_w + gap)
             y_top = cy - s(52) - h
             y_bot = cy - s(52) + h
             item = self.canvas.create_rectangle(
                 x, y_top, x + bar_w, y_bot,
-                fill=C["error"], outline="", width=0,
+                fill=C["accent"], outline="", width=0,
             )
             self._items.append(item)
 
     def _draw_thinking(self, cx, cy):
-        """Spinning stars during LLM processing."""
+        """Spinning holographic data rings during LLM processing."""
         s = self._s
-        n = 4
-        r = s(12)
+        n = 3
+        r = s(16)
         for i in range(n):
-            angle = self.t * 2 + i * (2 * math.pi / n)
+            angle = self.t * 3 + i * (2 * math.pi / n)
             x = cx + r * math.cos(angle)
-            y = (cy - s(50)) + r * 0.4 * math.sin(angle)
-            size = s(3 + math.sin(self.t * 3 + i) * 1.5)
-            self._draw_oval(x, y, size, size, fill=C["glow"], outline="")
+            y = (cy - s(45)) + r * 0.3 * math.sin(angle)
+            size = s(2 + math.sin(self.t * 4 + i) * 1.5)
+            # Draw orbiting nodes
+            self._draw_oval(x, y, size, size, fill=C["accent2"], outline=C["glow"], width=1)
+        
+        # Draw central glowing core for thinking
+        core_pulse = 1.0 + math.sin(self.t * 8) * 0.2
+        self._draw_oval(cx, cy - s(45), s(4)*core_pulse, s(4)*core_pulse, fill=C["accent"], outline="")
 
     def tick(self, dt: float):
         self.t += dt
@@ -398,9 +367,9 @@ class DesktopPet:
 
         # Name tag below pet
         self.name_tag = tk.Label(
-            self.root, text="✦ 灵犀 ✦",
-            font=("Segoe UI", 8, "bold"),
-            bg="black", fg=C["accent"],
+            self.root, text="« L U M I »",
+            font=("Consolas", 8, "bold"),
+            bg="black", fg=C["holo_outline"],
         )
         self.name_tag.pack()
 
@@ -580,40 +549,44 @@ class DesktopPet:
         self.panel.protocol("WM_DELETE_WINDOW", self._hide_panel)
         self.panel.withdraw()
 
-        # ── Header (layered glow effect) ──
-        hdr = tk.Frame(self.panel, bg=C["card"], pady=0)
+        # ── Header (Sleek minimalist tech header) ──
+        hdr = tk.Frame(self.panel, bg=C["panel"], pady=0)
         hdr.pack(fill="x")
-        # Accent top-border strip
-        tk.Frame(hdr, bg=C["accent"], height=2).pack(fill="x")
-        hdr_inner = tk.Frame(hdr, bg=C["card"], pady=12)
+        # Top ultra-thin accent neon line
+        tk.Frame(hdr, bg=C["accent"], height=1).pack(fill="x")
+        hdr_inner = tk.Frame(hdr, bg=C["panel"], pady=14)
         hdr_inner.pack(fill="x")
 
-        left_col = tk.Frame(hdr_inner, bg=C["card"])
-        left_col.pack(side="left", padx=(16, 0))
-        tk.Label(left_col, text="✦ 灵犀笔记",
-                 font=FONT_XL, bg=C["card"], fg=C["glow"]).pack(anchor="w")
-        tk.Label(left_col, text="LumiLog · AI Diary Companion",
-                 font=("Segoe UI", 8), bg=C["card"], fg=C["muted"]).pack(anchor="w")
+        left_col = tk.Frame(hdr_inner, bg=C["panel"])
+        left_col.pack(side="left", padx=(20, 0))
+        tk.Label(left_col, text="✦ LUMILOG",
+                 font=FONT_XL, bg=C["panel"], fg=C["text"]).pack(anchor="w")
+        tk.Label(left_col, text="AI MEMORY CORE",
+                 font=("Segoe UI Variable Display", 7, "bold"), bg=C["panel"], fg=C["accent"]).pack(anchor="w")
 
-        # Record button in header
+        # Record button in header (flat icon)
         self._hdr_rec_btn = tk.Button(
             hdr_inner, text="🎙️",
-            font=("Segoe UI", 14),
-            bg=C["card"], fg=C["accent"],
-            relief="flat", cursor="hand2",
+            font=("Segoe UI", 12),
+            bg=C["panel"], fg=C["text"],
+            activebackground=C["card"], activeforeground=C["accent"],
+            relief="flat", cursor="hand2", bd=0,
             command=self._toggle_record_panel,
         )
-        self._hdr_rec_btn.pack(side="right", padx=16)
+        self._hdr_rec_btn.pack(side="right", padx=20)
 
-        # ── Tabs ──
+        # Bottom thin separator
+        tk.Frame(hdr, bg=C["card2"], height=1).pack(fill="x")
+
+        # ── Tabs (Modern flat underline style) ──
         style = ttk.Style()
         style.theme_use("clam")
         style.configure("X.TNotebook",     background=C["bg"], borderwidth=0, tabmargins=0)
-        style.configure("X.TNotebook.Tab", background=C["card2"], foreground=C["muted"],
-                         padding=[14, 8], font=FONT)
+        style.configure("X.TNotebook.Tab", background=C["bg"], foreground=C["muted"],
+                         padding=[20, 10], font=FONT_LG, borderwidth=0, focuscolor=C["bg"])
         style.map("X.TNotebook.Tab",
                   background=[("selected", C["card"])],
-                  foreground=[("selected", C["glow"])])
+                  foreground=[("selected", C["accent"])])
 
         nb = ttk.Notebook(self.panel, style="X.TNotebook")
         nb.pack(fill="both", expand=True, padx=0, pady=0)
@@ -670,10 +643,10 @@ class DesktopPet:
         save_frame.pack(fill="x", padx=14, pady=8)
 
         tk.Button(
-            save_frame, text="✦  保存 & AI 反思",
-            font=FONT, bg=C["success"], fg=C["bg"],
-            activebackground="#2dd4bf",
-            relief="flat", padx=16, pady=8,
+            save_frame, text=" ✦  保存 & 分析  ",
+            font=FONT, bg=C["card2"], fg=C["text"],
+            activebackground=C["accent"], activeforeground=C["bg"],
+            relief="flat", padx=16, pady=8, bd=1,
             cursor="hand2",
             command=self._save_entry,
         ).pack(side="left")
@@ -686,13 +659,13 @@ class DesktopPet:
         sep2 = tk.Frame(parent, bg=C["card2"], height=1)
         sep2.pack(fill="x", padx=14, pady=6)
 
-        tk.Label(parent, text="✦ 灵犀的反思", font=FONT_SM,
-                 bg=C["bg"], fg=C["accent"]).pack(anchor="w", padx=14)
+        tk.Label(parent, text="✦ REASONING", font=("Consolas", 8, "bold"),
+                 bg=C["bg"], fg=C["accent2"]).pack(anchor="w", padx=14)
 
         self._reflection_box = scrolledtext.ScrolledText(
             parent, height=4,
-            font=("Segoe UI", 10),
-            bg=C["card2"], fg=C["glow"],
+            font=("Segoe UI Variable Display", 10),
+            bg=C["card2"], fg=C["text"],
             relief="flat", padx=10, pady=10,
             wrap="word", state="disabled",
         )
@@ -702,14 +675,14 @@ class DesktopPet:
         self._query_frame = tk.Frame(parent, bg=C["bg"])
         # (packed/unpacked dynamically)
 
-        tk.Label(self._query_frame, text="🧠  记忆查询回答",
-                 font=FONT_SM, bg=C["bg"], fg=C["accent2"]).pack(anchor="w", padx=14)
+        tk.Label(self._query_frame, text="🧠 MEMORY RETRIEVED",
+                 font=("Consolas", 8, "bold"), bg=C["bg"], fg=C["accent"]).pack(anchor="w", padx=14)
         self._query_box = scrolledtext.ScrolledText(
             self._query_frame, height=5,
-            font=("Segoe UI", 10),
-            bg="#0f172a", fg=C["accent2"],
+            font=("Segoe UI Variable Display", 10),
+            bg="#060b14", fg=C["accent"],
             relief="flat", padx=10, pady=10,
-            wrap="word", state="disabled",
+            wrap="word", state="disabled", highlightthickness=1, highlightbackground=C["holo_outline"]
         )
         self._query_box.pack(fill="both", padx=14, pady=(2, 14))
 
@@ -811,12 +784,12 @@ class DesktopPet:
 
     def _build_history_tab(self, parent):
         btn_f = tk.Frame(parent, bg=C["bg"])
-        btn_f.pack(fill="x", padx=14, pady=(10, 4))
+        btn_f.pack(fill="x", padx=14, pady=(14, 4))
 
-        tk.Label(btn_f, text="日记历史", font=FONT, bg=C["bg"], fg=C["text"]).pack(side="left")
-        tk.Button(btn_f, text="↻ 刷新", font=FONT_SM,
-                  bg=C["card"], fg=C["muted"],
-                  relief="flat", padx=8,
+        tk.Label(btn_f, text="MEMORIES", font=("Consolas", 10, "bold"), bg=C["bg"], fg=C["text"]).pack(side="left")
+        tk.Button(btn_f, text="↻ SYNC", font=("Consolas", 8),
+                  bg=C["card2"], fg=C["muted"],
+                  relief="flat", padx=12, bd=0, activebackground=C["card"], activeforeground=C["text"],
                   command=self._refresh_history).pack(side="right")
 
         # Scrollable area
@@ -837,29 +810,33 @@ class DesktopPet:
 
         entries = self._get_entries()
         if not entries:
-            tk.Label(self._hist_inner, text="\n还没有日记～\n去写第一篇吧 ✦",
-                     font=FONT, bg=C["bg"], fg=C["muted"]).pack(pady=30)
+            tk.Label(self._hist_inner, text="\n[ EMPTY DATA STREAM ]\nWrite your first entry ✦",
+                     font=("Consolas", 9), bg=C["bg"], fg=C["muted"]).pack(pady=30)
             return
 
         for e in entries:
             self._make_entry_card(self._hist_inner, e)
 
     def _make_entry_card(self, parent, e: dict):
-        card = tk.Frame(parent, bg=C["card"], pady=10, padx=12, cursor="hand2")
-        card.pack(fill="x", pady=(0, 6))
+        # Cyber-card style (borderless, dark, solid padding)
+        card_outer = tk.Frame(parent, bg=C["holo_core"], pady=1, padx=1) # Thin border effect
+        card_outer.pack(fill="x", pady=(0, 10))
+        
+        card = tk.Frame(card_outer, bg=C["card"], pady=14, padx=16, cursor="hand2")
+        card.pack(fill="both", expand=True)
 
         # Header row
         hrow = tk.Frame(card, bg=C["card"])
         hrow.pack(fill="x")
 
-        tk.Label(hrow, text=f"📅 {e['date']}",
-                 font=FONT_SM, bg=C["card"], fg=C["accent"]).pack(side="left")
+        tk.Label(hrow, text=f"LOG  {e['date']}",
+                 font=("Consolas", 8), bg=C["card"], fg=C["holo_outline"]).pack(side="left")
 
         try:
             tags = __import__("json").loads(e["tags"])
             if tags:
-                tag_str = "  ".join([f"#{t}" for t in tags[:3]])
-                tk.Label(hrow, text=tag_str, font=FONT_SM,
+                tag_str = " ".join([f"[{t}]" for t in tags[:3]])
+                tk.Label(hrow, text=tag_str, font=("Consolas", 8),
                          bg=C["card"], fg=C["accent2"]).pack(side="right")
         except Exception:
             pass
@@ -868,26 +845,26 @@ class DesktopPet:
         preview = e["text"][:160] + ("..." if len(e["text"]) > 160 else "")
         tk.Label(card, text=preview, font=FONT,
                  bg=C["card"], fg=C["text"],
-                 wraplength=440, justify="left").pack(anchor="w", pady=(6, 0))
+                 wraplength=440, justify="left").pack(anchor="w", pady=(10, 0))
 
         # Reflection
         if e.get("reflection"):
             sep = tk.Frame(card, bg=C["card2"], height=1)
-            sep.pack(fill="x", pady=(8, 4))
+            sep.pack(fill="x", pady=(10, 6))
             tk.Label(card, text=f"✦ {e['reflection'][:120]}",
-                     font=FONT_SM, bg=C["card"], fg=C["glow"],
+                     font=("Segoe UI Variable Display", 8), bg=C["card"], fg=C["glow"],
                      wraplength=440, justify="left").pack(anchor="w")
 
     # ── Reminders tab ─────────────────────────────────────────────────────────
 
     def _build_reminders_tab(self, parent):
         btn_f = tk.Frame(parent, bg=C["bg"])
-        btn_f.pack(fill="x", padx=14, pady=(10, 4))
+        btn_f.pack(fill="x", padx=14, pady=(14, 4))
 
-        tk.Label(btn_f, text="待处理提醒", font=FONT, bg=C["bg"], fg=C["text"]).pack(side="left")
-        tk.Button(btn_f, text="↻ 刷新", font=FONT_SM,
-                  bg=C["card"], fg=C["muted"],
-                  relief="flat", padx=8,
+        tk.Label(btn_f, text="PENDING ALERTS", font=("Consolas", 10, "bold"), bg=C["bg"], fg=C["text"]).pack(side="left")
+        tk.Button(btn_f, text="↻ SYNC", font=("Consolas", 8),
+                  bg=C["card2"], fg=C["muted"],
+                  relief="flat", padx=12, bd=0, activebackground=C["card"], activeforeground=C["text"],
                   command=self._refresh_reminders).pack(side="right")
 
         self._rem_canvas = tk.Canvas(parent, bg=C["bg"], highlightthickness=0)
@@ -907,29 +884,31 @@ class DesktopPet:
 
         reminders = self._get_reminders()
         if not reminders:
-            tk.Label(self._rem_inner, text="\n暂无待处理的提醒 ✦",
-                     font=FONT, bg=C["bg"], fg=C["muted"]).pack(pady=30)
+            tk.Label(self._rem_inner, text="\n[ NO ACTIVE ALERTS ]✦",
+                     font=("Consolas", 9), bg=C["bg"], fg=C["muted"]).pack(pady=30)
             return
 
         for r in reminders:
-            card = tk.Frame(self._rem_inner, bg=C["card"], pady=10, padx=12)
-            card.pack(fill="x", pady=(0, 6))
+            card_outer = tk.Frame(self._rem_inner, bg=C["warn"], pady=1, padx=0)
+            card_outer.pack(fill="x", pady=(0, 10))
+            card = tk.Frame(card_outer, bg=C["card"], pady=12, padx=16)
+            card.pack(fill="both", expand=True)
 
-            tk.Label(card, text=f"⏰  {r['time']}",
-                     font=FONT_SM, bg=C["card"], fg=C["warn"]).pack(anchor="w")
+            tk.Label(card, text=f"T-{r['time']}",
+                     font=("Consolas", 8, "bold"), bg=C["card"], fg=C["warn"]).pack(anchor="w")
             tk.Label(card, text=r["message"], font=FONT,
                      bg=C["card"], fg=C["text"],
-                     wraplength=440, justify="left").pack(anchor="w", pady=(4, 0))
+                     wraplength=440, justify="left").pack(anchor="w", pady=(8, 0))
 
     # ── Chat tab ──────────────────────────────────────────────────────────────
 
     def _build_chat_tab(self, parent):
         self._chat_log = scrolledtext.ScrolledText(
             parent, height=20,
-            font=("Segoe UI", 10),
-            bg=C["card"], fg=C["text"],
+            font=("Segoe UI Variable Display", 10),
+            bg=C["panel"], fg=C["text"],
             insertbackground=C["glow"],
-            relief="flat", padx=12, pady=12,
+            relief="flat", padx=16, pady=16,
             wrap="word", state="disabled",
             selectbackground=C["accent2"],
         )
@@ -938,36 +917,36 @@ class DesktopPet:
         # Tag styles
         self._chat_log.tag_config("pet",   foreground=C["accent"])
         self._chat_log.tag_config("user",  foreground=C["accent2"])
-        self._chat_log.tag_config("time",  foreground=C["muted"])
+        self._chat_log.tag_config("time",  foreground=C["muted"], font=("Consolas", 8))
         self._chat_log.tag_config("body",  foreground=C["text"])
         self._chat_log.tag_config("hint",  foreground=C["muted"])
 
         # Input area
-        inp = tk.Frame(parent, bg=C["card2"])
+        inp = tk.Frame(parent, bg=C["panel"])
         inp.pack(fill="x", padx=14, pady=(0, 14))
 
         self._chat_input = tk.Entry(
-            inp, font=("Segoe UI", 10),
-            bg=C["card2"], fg=C["text"],
+            inp, font=("Segoe UI Variable Display", 10),
+            bg=C["card"], fg=C["text"],
             insertbackground=C["glow"],
             relief="flat",
         )
-        self._chat_input.pack(side="left", fill="x", expand=True, ipady=8, padx=(10, 0))
+        self._chat_input.pack(side="left", fill="x", expand=True, ipady=10, padx=(0, 10))
         self._chat_input.bind("<Return>", lambda e: self._send_chat())
 
         tk.Button(
-            inp, text="发送",
-            font=FONT, bg=C["accent"], fg="white",
-            relief="flat", padx=14, pady=6,
-            command=self._send_chat,
+            inp, text="ENTER",
+            font=("Consolas", 10, "bold"), bg=C["accent"], fg=C["panel"],
+            relief="flat", padx=16, pady=8, bd=0, activebackground=C["glow"],
+            command=self._send_chat, cursor="hand2"
         ).pack(side="right")
 
         # Memory hint
-        tk.Label(parent, text="💡 可以问：「上周我做了什么」「下周有什么任务」「昨天发生了啥」",
-                 font=("Segoe UI", 8), bg=C["bg"], fg=C["muted"],
+        tk.Label(parent, text="💡 TERMINAL: Query past entries or chat directly.",
+                 font=("Consolas", 8), bg=C["bg"], fg=C["muted"],
                  wraplength=480).pack(padx=14, pady=(0, 8))
 
-        self._append_chat("灵犀", "你好呀！我是灵犀 ✦ 可以和我聊天、或者问我你之前的日记记录哦～")
+        self._append_chat("LUMI", "System online. Ready to sync.")
 
     def _send_chat(self):
         self._reset_idle()
@@ -975,7 +954,7 @@ class DesktopPet:
         if not msg:
             return
         self._chat_input.delete(0, "end")
-        self._append_chat("你", msg)
+        self._append_chat("USER", msg)
         self.sprite.set_state("talking")
 
         def do():
@@ -984,14 +963,14 @@ class DesktopPet:
         threading.Thread(target=do, daemon=True).start()
 
     def _on_chat_reply(self, reply: str):
-        self._append_chat("灵犀", reply)
+        self._append_chat("LUMI", reply)
         self.sprite.set_state("happy")
         self.show_bubble(reply[:25] + "...", duration=4)
 
     def _append_chat(self, sender: str, text: str):
         self._chat_log.config(state="normal")
-        ts = datetime.now().strftime("%H:%M")
-        tag = "pet" if sender != "你" else "user"
+        ts = datetime.now().strftime("%H:%M:%S")
+        tag = "pet" if sender != "USER" else "user"
         self._chat_log.insert("end", f"\n[{ts}] ", "time")
         self._chat_log.insert("end", f"{sender}\n", tag)
         self._chat_log.insert("end", f"{text}\n", "body")
