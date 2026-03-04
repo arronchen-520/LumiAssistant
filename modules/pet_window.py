@@ -1,5 +1,5 @@
 """
-pet_window.py - Premium desktop pet UI (LumiLog 灵犀笔记)
+pet_window.py - Premium desktop pet UI (LumiAssistant)
 Approach: tkinter shell (transparent window) + embedded tkinter canvas
 with programmatic pixel-art sprite rendering and smooth animation engine.
 
@@ -565,7 +565,7 @@ class DesktopPet:
 
         left_col = tk.Frame(hdr_inner, bg=C["panel"])
         left_col.pack(side="left", padx=(20, 0))
-        tk.Label(left_col, text="✦ LUMILOG",
+        tk.Label(left_col, text="✦ LUMIASSISTANT",
                  font=FONT_XL, bg=C["panel"], fg=C["text"]).pack(anchor="w")
         tk.Label(left_col, text="AI MEMORY CORE",
                  font=("Segoe UI Variable Display", 7, "bold"), bg=C["panel"], fg=C["accent"]).pack(anchor="w")

@@ -1,5 +1,5 @@
 """
-main.py — LumiLog 灵犀笔记
+main.py — LumiAssistant
 Stack: LLM (Ollama / Groq / OpenAI / custom) + Groq Whisper STT + SQLite + FTS5
 """
 import os
@@ -175,7 +175,7 @@ def main():
 
     info  = get_provider_info()
     lang  = stt_language or "auto"
-    print(f"\n🌟  LumiLog 灵犀笔记 is running!")
+    print(f"\n🌟  LumiAssistant is running!")
     print(f"    LLM : {info['provider'].upper()} ({info['model']})  →  {info['url']}")
     print(f"    STT : Groq Whisper large-v3-turbo  (language={lang})")
     print(f"    DB  : SQLite + FTS5  →  data/diary.db")

@@ -13,7 +13,7 @@ from modules.database import (
 # ── Query Planner ─────────────────────────────────────────────────────────────
 
 _PLANNER_SYSTEM = """\
-You are a query planner for a personal diary app (LumiLog · 灵犀笔记). Current datetime: {now}.
+You are a query planner for a personal diary app (LumiAssistant). Current datetime: {now}.
 
 Analyze the user's message and output ONLY valid JSON — no markdown, no explanation:
 {{
@@ -100,7 +100,7 @@ def _retrieve(plan: dict) -> dict:
 # ── Answer Generator ──────────────────────────────────────────────────────────
 
 _ANSWER_SYSTEM = """\
-You are Lumi, a warm and caring AI diary companion (LumiLog · 灵犀笔记). Current time: {now}.
+You are Lumi, a warm and caring AI diary companion (LumiAssistant). Current time: {now}.
 The user asked about their diary memories or upcoming schedule.
 You have been given the retrieved diary entries and reminders below.
 

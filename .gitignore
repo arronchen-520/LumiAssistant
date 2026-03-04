@@ -7,3 +7,5 @@ __pycache__/
 *.db
 *.db-shm
 *.db-wal
+
+code_merge.py

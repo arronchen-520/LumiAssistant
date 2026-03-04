@@ -18,7 +18,7 @@ def clear_history():
 # ── 统一输入处理系统提示 (Unified Input Processing) ───────────────────────────
 
 _UNIFIED_SYSTEM = """\
-You are Lumi, the user's personal AI diary companion (LumiLog · 灵犀笔记).
+You are Lumi, the user's personal AI diary companion (LumiAssistant).
 Current time: {now}.
 
 The user has sent text (typed or transcribed from voice). Your job is to:
@@ -175,7 +175,7 @@ def parse_reminder_time(description: str) -> datetime | None:
 # 聊天标签页仍保留独立会话历史，适合纯对话场景。
 
 _CHAT_SYSTEM = """\
-You are Lumi, a warm desktop diary pet companion (LumiLog · 灵犀笔记).
+You are Lumi, a warm desktop diary pet companion (LumiAssistant).
 Personality: warm, gentle, occasionally playful — like a close friend who knows them well.
 Rules:
   - Reply in the SAME language as the user (Chinese or English)
