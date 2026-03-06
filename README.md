@@ -15,7 +15,7 @@
 [![Ollama](https://img.shields.io/badge/LLM-Ollama%20%2F%20Groq%20%2F%20OpenAI-a78bfa?style=flat-square)](https://ollama.com)
 [![Groq](https://img.shields.io/badge/STT-Groq%20Whisper-34d399?style=flat-square)](https://console.groq.com)
 [![License](https://img.shields.io/badge/License-MIT-64748b?style=flat-square)](LICENSE)
-[![Demo](https://img.shields.io/badge/Live%20Demo-lumi-assistant.netlify.app-34d399?style=flat-square&logo=netlify&logoColor=white)](https://lumi-assistant.netlify.app)
+[![Demo](https://img.shields.io/badge/Live%20Demo-lumi--assistant.netlify.app-34d399?style=flat-square&logo=netlify&logoColor=white)](https://lumi-assistant.netlify.app)
 [![Stars](https://img.shields.io/github/stars/arronchen-520/LumiAssistant?style=flat-square&color=fde68a)](https://github.com/arronchen-520/LumiAssistant/stargazers)
 
 <br/>
@@ -38,7 +38,7 @@
 | **日记** | ✅ 全文检索 + 记忆问答 | ✅ AI 日记 + 情感反馈 |
 | **人设** | ✅ 长期记忆 | ✅ 自动提取 + 长期记忆 |
 | **隐私** | ✅ 纯本地（Ollama） | ✅ 数据不离你手机 |
-| **部署** | `python main.py` | 拖到 Netlify / 双击打开 |
+| **部署** | `python main.py` | 访问 [lumi-assistant.netlify.app](https://lumi-assistant.netlify.app) |
 
 ---
 
