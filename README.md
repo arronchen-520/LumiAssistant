@@ -14,7 +14,7 @@
 [![Web](https://img.shields.io/badge/Web-PWA-34d399?style=flat-square&logo=googlechrome&logoColor=white)](LumiAssistantWeb/)
 [![Ollama](https://img.shields.io/badge/LLM-Ollama%20%2F%20Groq%20%2F%20OpenAI-a78bfa?style=flat-square)](https://ollama.com)
 [![Groq](https://img.shields.io/badge/STT-Groq%20Whisper-34d399?style=flat-square)](https://console.groq.com)
-[![License](https://img.shields.io/badge/License-MIT-64748b?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/License-AGPL--3.0-64748b?style=flat-square)](LICENSE)
 [![Demo](https://img.shields.io/badge/Live%20Demo-lumi--assistant.netlify.app-34d399?style=flat-square&logo=netlify&logoColor=white)](https://lumi-assistant.netlify.app)
 [![Stars](https://img.shields.io/github/stars/arronchen-520/LumiAssistant?style=flat-square&color=fde68a)](https://github.com/arronchen-520/LumiAssistant/stargazers)
 
