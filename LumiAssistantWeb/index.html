@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lumi Assistant</title>
+    <meta name="description" content="Lumi — 你的 AI 私人秘书，帮你记事、管待办、记住你的一切。">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon.jpg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        :root {
+            --bg: #0f0f14;
+            --panel: #181820;
+            --card: #1f1f2a;
+            --card2: #262635;
+            --card3: #2e2e40;
+            --accent: #7c8cf8;
+            --accent2: #b48cfa;
+            --accent-glow: rgba(124, 140, 248, .15);
+            --text: #eaeaf0;
+            --muted: #717190;
+            --dim: #4a4a66;
+            --success: #5ee8b0;
+            --warn: #f5c542;
+            --error: #f87171;
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+
+        html,
+        body {
+            height: 100%;
+            overflow: hidden
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column
+        }
+
+        input,
+        textarea,
+        button {
+            font-family: inherit
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--dim);
+            border-radius: 4px
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--panel) 0%, #1a1a28 100%);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            border-bottom: 1px solid rgba(124, 140, 248, .12);
+            position: relative;
+            z-index: 10
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent)
+        }
+
+        .lumi-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            position: relative;
+            background: radial-gradient(circle at 40% 35%, #9b8cf8 0%, #5b5cbf 60%, #3a3a80 100%);
+            box-shadow: 0 0 18px rgba(124, 140, 248, .35);
+            flex-shrink: 0;
+            cursor: pointer;
+            animation: av-breathe 3s ease-in-out infinite
+        }
+
+        .lumi-avatar::before {
+            content: '';
+            position: absolute;
+            top: 12px;
+            left: 11px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #e0e8ff;
+            box-shadow: 14px 0 0 #e0e8ff, 0 0 6px rgba(255, 255, 255, .6), 14px 0 6px rgba(255, 255, 255, .6)
+        }
+
+        .lumi-avatar::after {
+            content: '';
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 10px;
+            height: 4px;
+            border-radius: 0 0 5px 5px;
+            background: #e0e8ff;
+            opacity: .7
+        }
+
+        .lumi-avatar.talking {
+            animation: av-talk .3s ease-in-out infinite alternate
+        }
+
+        .lumi-avatar.thinking {
+            animation: av-think 1s ease-in-out infinite
+        }
+
+        @keyframes av-breathe {
+
+            0%,
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 18px rgba(124, 140, 248, .35)
+            }
+
+            50% {
+                transform: scale(1.04);
+                box-shadow: 0 0 24px rgba(124, 140, 248, .5)
+            }
+        }
+
+        @keyframes av-talk {
+            0% {
+                transform: scale(1) translateY(0)
+            }
+
+            100% {
+                transform: scale(1.02) translateY(-2px)
+            }
+        }
+
+        @keyframes av-think {
+
+            0%,
+            100% {
+                box-shadow: 0 0 18px rgba(124, 140, 248, .3)
+            }
+
+            50% {
+                box-shadow: 0 0 30px rgba(180, 140, 250, .6)
+            }
+        }
+
+        .header-info {
+            flex: 1;
+            min-width: 0
+        }
+
+        .header-name {
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: .5px
+        }
+
+        .header-status {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 1px
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 16px 16px 86px
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeUp .3s ease
+        }
+
+        .tab-content.active {
+            display: block
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(12px)
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0)
+            }
+        }
+
+        .tab-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: rgba(24, 24, 32, .92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+            border-top: 1px solid rgba(124, 140, 248, .08)
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--dim);
+            font-size: 10px;
+            font-weight: 500;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            padding: 4px 12px;
+            border-radius: 12px;
+            transition: all .25s;
+            position: relative
+        }
+
+        .tab-btn .icon {
+            font-size: 20px;
+            transition: transform .25s
+        }
+
+        .tab-btn.active {
+            color: var(--accent)
+        }
+
+        .tab-btn.active .icon {
+            transform: scale(1.15)
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 3px;
+            border-radius: 2px;
+            background: var(--accent)
+        }
+
+        .tab-btn .badge {
+            position: absolute;
+            top: -2px;
+            right: 2px;
+            min-width: 16px;
+            height: 16px;
+            background: var(--error);
+            color: #fff;
+            font-size: 9px;
+            font-weight: 700;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px
+        }
+
+        /* Chat */
+        .chat-messages {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 100%
+        }
+
+        .msg {
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 14px;
+            line-height: 1.6;
+            word-break: break-word;
+            animation: msgPop .3s ease
+        }
+
+        .msg-lumi {
+            align-self: flex-start;
+            background: var(--card);
+            border-bottom-left-radius: 4px;
+            position: relative
+        }
+
+        .msg-lumi::before {
+            content: '✦';
+            position: absolute;
+            top: -8px;
+            left: -2px;
+            font-size: 10px;
+            color: var(--accent2)
+        }
+
+        .msg-user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+            color: #fff;
+            border-bottom-right-radius: 4px
+        }
+
+        .msg-system {
+            align-self: center;
+            background: transparent;
+            color: var(--muted);
+            font-size: 12px;
+            padding: 6px;
+            text-align: center
+        }
+
+        @keyframes msgPop {
+            from {
+                opacity: 0;
+                transform: scale(.95) translateY(8px)
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0)
+            }
+        }
+
+        .msg-time {
+            font-size: 10px;
+            color: var(--dim);
+            margin-top: 4px
+        }
+
+        .msg-lumi h1,
+        .msg-lumi h2,
+        .msg-lumi h3 {
+            font-size: 14px;
+            font-weight: 700;
+            margin: 8px 0 4px;
+            color: var(--accent)
+        }
+
+        .msg-lumi h2 {
+            font-size: 13px
+        }
+
+        .msg-lumi h3 {
+            font-size: 13px;
+            color: var(--accent2)
+        }
+
+        .msg-lumi ul,
+        .msg-lumi ol {
+            padding-left: 18px;
+            margin: 4px 0
+        }
+
+        .msg-lumi li {
+            margin: 2px 0
+        }
+
+        .msg-lumi p {
+            margin: 4px 0
+        }
+
+        .msg-lumi strong {
+            color: var(--accent)
+        }
+
+        .msg-lumi em {
+            color: var(--accent2)
+        }
+
+        .msg-lumi code {
+            background: var(--card2);
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: 'Consolas', 'SF Mono', monospace
+        }
+
+        .msg-lumi pre {
+            background: var(--card2);
+            padding: 10px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 6px 0
+        }
+
+        .msg-lumi pre code {
+            background: none;
+            padding: 0
+        }
+
+        .msg-lumi blockquote {
+            border-left: 3px solid var(--accent);
+            padding-left: 10px;
+            margin: 6px 0;
+            color: var(--muted)
+        }
+
+        /* Chat input — textarea that auto-resizes */
+        .chat-input-area {
+            position: sticky;
+            bottom: 0;
+            padding: 10px 0;
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+            background: linear-gradient(transparent, var(--bg) 30%);
+            padding-top: 20px
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 10px 16px;
+            border-radius: 20px;
+            border: 1px solid var(--card3);
+            background: var(--card);
+            color: var(--text);
+            font-size: 14px;
+            outline: none;
+            transition: border-color .2s;
+            resize: none;
+            overflow-y: auto;
+            min-height: 44px;
+            max-height: 120px;
+            line-height: 1.5;
+            font-family: inherit;
+        }
+
+        .chat-input:focus {
+            border-color: var(--accent)
+        }
+
+        .chat-input::placeholder {
+            color: var(--dim)
+        }
+
+        .btn-send {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            flex-shrink: 0;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: #fff;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform .15s
+        }
+
+        .btn-send:active {
+            transform: scale(.9)
+        }
+
+        .btn-record {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            flex-shrink: 0;
+            background: var(--card2);
+            color: var(--muted);
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all .2s
+        }
+
+        .btn-record.recording {
+            background: var(--error);
+            color: #fff;
+            animation: pulse 1s ease-in-out infinite
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(248, 113, 113, .4)
+            }
+
+            50% {
+                box-shadow: 0 0 0 10px rgba(248, 113, 113, 0)
+            }
+        }
+
+        /* Todo */
+        .todo-section-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+            margin: 18px 0 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .todo-section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--card2)
+        }
+
+        .todo-card {
+            background: var(--card);
+            border-radius: var(--radius-sm);
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            border-left: 3px solid var(--accent);
+            transition: all .25s;
+            position: relative;
+            overflow: hidden
+        }
+
+        .todo-card.overdue {
+            border-left-color: var(--error)
+        }
+
+        .todo-card.high-prio {
+            border-left-color: var(--warn)
+        }
+
+        .todo-project {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--accent2);
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px
+        }
+
+        .todo-task {
+            font-size: 14px;
+            line-height: 1.45
+        }
+
+        .todo-notes {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 6px;
+            font-style: italic
+        }
+
+        .todo-subtasks {
+            margin-top: 8px;
+            padding-left: 4px
+        }
+
+        .todo-subtask {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+            font-size: 13px
+        }
+
+        .todo-subtask.done {
+            color: var(--dim);
+            text-decoration: line-through
+        }
+
+        .todo-subtask-check {
+            width: 18px;
+            height: 18px;
+            border-radius: 5px;
+            border: 2px solid var(--dim);
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            transition: all .2s;
+            flex-shrink: 0;
+            padding: 0
+        }
+
+        .todo-subtask-check.checked {
+            background: var(--success);
+            border-color: var(--success);
+            color: var(--bg)
+        }
+
+        .todo-deadline {
+            font-size: 11px;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px
+        }
+
+        .todo-deadline.urgent {
+            color: var(--error);
+            font-weight: 600
+        }
+
+        .todo-deadline.soon {
+            color: var(--warn)
+        }
+
+        .todo-deadline.normal {
+            color: var(--dim)
+        }
+
+        .todo-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            flex-wrap: wrap;
+            gap: 6px
+        }
+
+        .todo-priority {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 6px
+        }
+
+        .todo-priority.high {
+            background: rgba(248, 113, 113, .12);
+            color: var(--error)
+        }
+
+        .todo-priority.medium {
+            background: rgba(245, 197, 66, .08);
+            color: var(--dim)
+        }
+
+        .todo-priority.low {
+            background: rgba(94, 232, 176, .08);
+            color: var(--dim)
+        }
+
+        .todo-time {
+            font-size: 10px;
+            color: var(--dim)
+        }
+
+        .btn-todo-del {
+            background: transparent;
+            color: var(--error);
+            border: 1px solid rgba(248, 113, 113, .3);
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .15s
+        }
+
+        .btn-todo-del:hover {
+            background: rgba(248, 113, 113, .12)
+        }
+
+        .btn-todo-del:active {
+            transform: scale(.9)
+        }
+
+        .btn-todo-done {
+            background: var(--success);
+            color: var(--bg);
+            border: none;
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform .15s
+        }
+
+        .btn-todo-done:active {
+            transform: scale(.9)
+        }
+
+        .todo-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--dim)
+        }
+
+        .todo-empty .icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            display: block;
+            opacity: .5
+        }
+
+        .todo-stats {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px
+        }
+
+        .stat-chip {
+            flex: 1;
+            background: var(--card);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            text-align: center
+        }
+
+        .stat-num {
+            font-size: 22px;
+            font-weight: 700
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: var(--muted);
+            margin-top: 2px;
+            text-transform: uppercase;
+            letter-spacing: .5px
+        }
+
+        /* Quick add */
+        .todo-quick-add {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px
+        }
+
+        .todo-quick-input {
+            flex: 1;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--card3);
+            background: var(--card);
+            color: var(--text);
+            font-size: 13px;
+            outline: none
+        }
+
+        .todo-quick-input:focus {
+            border-color: var(--accent)
+        }
+
+        .todo-quick-input::placeholder {
+            color: var(--dim)
+        }
+
+        .todo-quick-btn {
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: #fff;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 0 16px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: 700;
+            transition: transform .15s
+        }
+
+        .todo-quick-btn:active {
+            transform: scale(.9)
+        }
+
+        /* History */
+        .history-card {
+            background: var(--card);
+            border-radius: var(--radius-sm);
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            border-left: 3px solid var(--accent)
+        }
+
+        .history-date {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--accent);
+            font-family: 'Consolas', 'SF Mono', monospace;
+            margin-bottom: 6px
+        }
+
+        .history-text {
+            font-size: 14px;
+            line-height: 1.5
+        }
+
+        .history-reflection {
+            font-size: 13px;
+            color: var(--accent2);
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--card2)
+        }
+
+        /* Settings */
+        .setting-group {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 14px
+        }
+
+        .setting-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px
+        }
+
+        .setting-input {
+            width: 100%;
+            padding: 11px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--card3);
+            background: var(--card2);
+            color: var(--text);
+            font-size: 13px;
+            outline: none
+        }
+
+        .setting-input:focus {
+            border-color: var(--accent)
+        }
+
+        .setting-hint {
+            font-size: 11px;
+            color: var(--dim);
+            margin-top: 6px;
+            line-height: 1.4
+        }
+
+        .setting-btn {
+            width: 100%;
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all .2s
+        }
+
+        .setting-btn-primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: #fff
+        }
+
+        .setting-btn-outline {
+            background: transparent;
+            border: 1px solid var(--dim);
+            color: var(--muted)
+        }
+
+        .setting-btn:active {
+            transform: scale(.97)
+        }
+
+        .privacy-banner {
+            background: linear-gradient(135deg, rgba(94, 232, 176, .08), rgba(124, 140, 248, .08));
+            border: 1px solid rgba(94, 232, 176, .15);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            margin-bottom: 14px;
+            font-size: 11px;
+            color: var(--muted);
+            line-height: 1.4
+        }
+
+        .privacy-banner strong {
+            color: var(--success)
+        }
+
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden
+        }
+
+        .particle {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            border-radius: 50%;
+            opacity: 0;
+            animation: float-up linear infinite
+        }
+
+        @keyframes float-up {
+            0% {
+                opacity: 0;
+                transform: translateY(100vh) scale(0)
+            }
+
+            10% {
+                opacity: .6
+            }
+
+            90% {
+                opacity: .3
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(-20px) scale(1)
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="particles" id="particles"></div>
+
+    <div class="header">
+        <div class="lumi-avatar" id="lumiAvatar" onclick="greetUser()"></div>
+        <div class="header-info">
+            <div class="header-name">Lumi</div>
+            <div class="header-status" id="headerStatus">随时为你效劳 ✦</div>
+        </div>
+    </div>
+
+    <div class="content">
+        <!-- Chat Tab -->
+        <div id="tab-chat" class="tab-content active">
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-input-area">
+                <button class="btn-record" id="recordBtn" onclick="toggleRecording()">🎙</button>
+                <textarea class="chat-input" id="chatInput" rows="1" placeholder="跟 Lumi 说点什么..."
+                    oninput="autoResize(this)"></textarea>
+                <button class="btn-send" id="sendBtn" onclick="sendMessage()">↑</button>
+            </div>
+        </div>
+
+        <!-- Todo Tab -->
+        <div id="tab-todo" class="tab-content">
+            <div class="todo-quick-add">
+                <input class="todo-quick-input" id="quickTodoInput" placeholder="快速添加待办..."
+                    onkeydown="if(event.key==='Enter')quickAddTodo()">
+                <button class="todo-quick-btn" onclick="quickAddTodo()">+</button>
+            </div>
+            <div class="todo-stats" id="todoStats"></div>
+            <div id="todoList"></div>
+        </div>
+
+        <!-- History Tab -->
+        <div id="tab-history" class="tab-content">
+            <div id="historyList"></div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="tab-settings" class="tab-content">
+            <div class="privacy-banner"><strong>🔒 隐私承诺</strong><br>你的 API Key、日记和所有数据只存在于你设备的浏览器中，绝不上传。</div>
+            <div class="setting-group">
+                <div class="setting-title">🔑 Groq API Key</div>
+                <input type="password" class="setting-input" id="apiKeyInput" placeholder="gsk_..."
+                    onchange="saveKey()">
+                <div class="setting-hint">在 <a href="https://console.groq.com" target="_blank"
+                        style="color:var(--accent)">console.groq.com</a> 免费获取</div>
+            </div>
+            <div class="setting-group">
+                <div class="setting-title">💾 数据管理</div>
+                <button class="setting-btn setting-btn-primary" onclick="exportData()" style="margin-bottom:8px">📦
+                    导出全部数据</button>
+                <button class="setting-btn setting-btn-outline" onclick="importData()">📂 导入数据</button>
+                <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
+            </div>
+            <div class="setting-group">
+                <div class="setting-title">⚠️ 危险操作</div>
+                <button class="setting-btn setting-btn-outline" style="border-color:var(--error);color:var(--error)"
+                    onclick="clearAllData()">🗑 清除所有数据</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GitHub Footer -->
+    <div style="text-align:center;padding:10px 0 4px;font-size:11px;color:#4a4a66">
+        <a href="https://github.com/arronchen-520/LumiAssistant" target="_blank" style="color:#7c8cf8;text-decoration:none">
+            ⭐ Star on GitHub
+        </a>
+        <span style="margin:0 6px;color:#4a4a66">·</span>
+        <span>Made with 💜 by Arron</span>
+    </div>
+
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('chat',this)"><span class="icon">💬</span>聊天</button>
+        <button class="tab-btn" onclick="switchTab('todo',this)" id="todoTabBtn"><span class="icon">✅</span>待办<span
+                class="badge" id="todoBadge" style="display:none">0</span></button>
+        <button class="tab-btn" onclick="switchTab('history',this)"><span class="icon">📚</span>历史</button>
+        <button class="tab-btn" onclick="switchTab('settings',this)"><span class="icon">⚙️</span>设置</button>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════
+        // DATA LAYER
+        // ═══════════════════════════════════════════════════════════════
+        const KEYS = { diaries: 'lumi_diaries', reminders: 'lumi_reminders', todos: 'lumi_todos', persona: 'lumi_persona', apiKey: 'GROQ_API_KEY', chatCtx: 'lumi_chat_ctx' };
+        function loadArr(k) { try { return JSON.parse(localStorage.getItem(k) || '[]') } catch { return [] } }
+        function saveArr(k, d) { localStorage.setItem(k, JSON.stringify(d)) }
+        function loadObj(k) { try { return JSON.parse(localStorage.getItem(k) || '{}') } catch { return {} } }
+        function saveObj(k, d) { localStorage.setItem(k, JSON.stringify(d)) }
+
+        // Markdown
+        function renderMd(text) {
+            if (typeof marked !== 'undefined') { marked.setOptions({ breaks: true, gfm: true }); return marked.parse(text) }
+            return text.replace(/\n/g, '<br>');
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // INIT
+        // ═══════════════════════════════════════════════════════════════
+        let mediaRecorder, audioChunks = [], isRecording = false;
+        let chatH = loadArr(KEYS.chatCtx); // LLM context persisted
+
+        window.onload = () => {
+            const k = localStorage.getItem(KEYS.apiKey);
+            if (k) document.getElementById('apiKeyInput').value = k;
+            initParticles();
+            // Restore chat UI
+            const saved = loadArr('lumi_ui_msgs');
+            if (saved.length > 0) saved.forEach(m => { if (m.t === 'l') addLumiMsg(m.v, false); else addUserMsg(m.v, false) });
+            else addLumiMsg(getGreeting());
+            renderTodos(); renderHistory(); updateBadge();
+            // Enter to send in chat
+            document.getElementById('chatInput').addEventListener('keydown', e => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
+            });
+        };
+
+        function getGreeting() {
+            const h = new Date().getHours(), p = loadObj(KEYS.persona), name = p.user_name ? `，${p.user_name}` : '';
+            const todos = loadArr(KEYS.todos);
+            const overdue = todos.filter(t => t.deadline && new Date(t.deadline) < new Date()).length;
+            let g;
+            if (h < 6) g = `夜深了${name}，还没休息吗？我随时在这里陪你 🌙`;
+            else if (h < 12) g = `早安${name}！☀️ 新的一天，有什么计划？`;
+            else if (h < 18) g = `下午好${name}，今天进展怎么样？`;
+            else g = `晚上好${name}，辛苦了一天 🌟`;
+            if (overdue > 0) g += `\n\n⚠️ 你有 **${overdue}** 个待办已过期！`;
+            else if (todos.length > 0) g += `\n\n你有 **${todos.length}** 个待办 📋`;
+            if (p.current_goal) g += `\n记得你的目标：*${p.current_goal}*，加油！💪`;
+            return g;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // CHAT PERSISTENCE
+        // ═══════════════════════════════════════════════════════════════
+        function saveChatUI() {
+            const msgs = [];
+            document.querySelectorAll('#chatMessages .msg').forEach(el => {
+                if (el.classList.contains('msg-system')) return;
+                msgs.push({ t: el.classList.contains('msg-user') ? 'u' : 'l', v: el.getAttribute('data-raw') || '' });
+            });
+            saveArr('lumi_ui_msgs', msgs.slice(-50));
+        }
+        function saveChatCtx() { saveArr(KEYS.chatCtx, chatH.slice(-20)) }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TEXTAREA AUTO-RESIZE
+        // ═══════════════════════════════════════════════════════════════
+        function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px' }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TAB SWITCHING
+        // ═══════════════════════════════════════════════════════════════
+        function switchTab(id, btn) {
+            document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(e => e.classList.remove('active'));
+            document.getElementById(`tab-${id}`).classList.add('active');
+            btn.classList.add('active');
+            if (id === 'todo') renderTodos(); if (id === 'history') renderHistory();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // CHAT UI
+        // ═══════════════════════════════════════════════════════════════
+        function addLumiMsg(text, persist = true) {
+            const el = document.getElementById('chatMessages'), d = document.createElement('div');
+            d.className = 'msg msg-lumi'; d.setAttribute('data-raw', text);
+            d.innerHTML = renderMd(text) + `<div class="msg-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>`;
+            el.appendChild(d); scrollChat(); if (persist) saveChatUI();
+        }
+        function addUserMsg(text, persist = true) {
+            const el = document.getElementById('chatMessages'), d = document.createElement('div');
+            d.className = 'msg msg-user'; d.setAttribute('data-raw', text);
+            d.innerHTML = esc(text).replace(/\n/g, '<br>') + `<div class="msg-time" style="color:rgba(255,255,255,.6)">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>`;
+            el.appendChild(d); scrollChat(); if (persist) saveChatUI();
+        }
+        function scrollChat() { const c = document.querySelector('.content'); setTimeout(() => c.scrollTop = c.scrollHeight, 50) }
+        function setStatus(t, temp = false) { const el = document.getElementById('headerStatus'); el.textContent = t; if (temp) setTimeout(() => el.textContent = '随时为你效劳 ✦', 4000) }
+        function setAvatar(s) { document.getElementById('lumiAvatar').className = 'lumi-avatar' + (s ? ' ' + s : '') }
+        function greetUser() {
+            setAvatar('talking');
+            addLumiMsg(['有什么可以帮你？ 🌟', '我在呢！说吧~', '需要帮你整理什么吗？✦'][Math.floor(Math.random() * 3)]);
+            setTimeout(() => setAvatar(''), 1500);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // SEND MESSAGE
+        // ═══════════════════════════════════════════════════════════════
+        async function sendMessage() {
+            const ta = document.getElementById('chatInput'), text = ta.value.trim(); if (!text) return;
+            const apiKey = localStorage.getItem(KEYS.apiKey);
+            if (!apiKey) { addLumiMsg('请先在 **设置** 里填写 Groq API Key 🔑'); return }
+            ta.value = ''; ta.style.height = 'auto'; addUserMsg(text); setAvatar('thinking'); setStatus('思考中...');
+            document.getElementById('sendBtn').disabled = true;
+
+            try {
+                const result = await callLumi(text, apiKey);
+                setAvatar('talking'); let response = '', sp = [];
+
+                // Todo actions
+                if (result.todo_actions && result.todo_actions.length > 0) {
+                    let todos = loadArr(KEYS.todos);
+                    result.todo_actions.forEach(ta => {
+                        if (ta.action === 'add_todo') {
+                            const subtasks = (ta.subtasks || []).map(s => ({ text: s, done: false }));
+                            todos.push({ id: Date.now() + Math.random(), created_at: new Date().toISOString(), updated_at: new Date().toISOString(), project: ta.project || '', task: ta.task, notes: ta.notes || '', priority: ta.priority || 'medium', deadline: ta.deadline || '', subtasks });
+                            sp.push(`📌 ${ta.task.slice(0, 20)}`);
+                        } else if (ta.action === 'complete_todo' || ta.action === 'delete_todo') {
+                            const kw = (ta.target_keyword || '').toLowerCase();
+                            todos = todos.filter(t => !t.task.toLowerCase().includes(kw) && !(t.project && t.project.toLowerCase().includes(kw)));
+                            sp.push(ta.action === 'complete_todo' ? '✅ 已完成并移除' : '🗑 已删除');
+                        } else if (ta.action === 'update_todo') {
+                            const kw = (ta.target_keyword || '').toLowerCase();
+                            todos.forEach(t => {
+                                if ((t.task.toLowerCase().includes(kw) || (t.project && t.project.toLowerCase().includes(kw)))) {
+                                    if (ta.notes) t.notes = ta.notes;
+                                    if (ta.deadline) t.deadline = ta.deadline;
+                                    if (ta.priority) t.priority = ta.priority;
+                                    if (ta.subtasks) { const subs = (ta.subtasks || []).map(s => ({ text: s, done: false })); t.subtasks = [...(t.subtasks || []), ...subs] }
+                                    t.updated_at = new Date().toISOString();
+                                }
+                            });
+                            sp.push('📝 已更新');
+                        }
+                    });
+                    saveArr(KEYS.todos, todos); renderTodos(); updateBadge();
+                }
+
+                // Diary
+                if (['diary', 'both'].includes(result.input_type)) {
+                    const d = loadArr(KEYS.diaries);
+                    d.unshift({ id: Date.now(), date: new Date().toLocaleString(), text, reflection: result.reflection || '' });
+                    saveArr(KEYS.diaries, d); sp.push('📝 已记录');
+                }
+
+                // Reminders
+                if (result.reminders_to_add && result.reminders_to_add.length > 0) {
+                    const r = loadArr(KEYS.reminders);
+                    result.reminders_to_add.forEach(rem => r.push({ id: Date.now() + Math.random(), time: rem.time, message: rem.message, done: false }));
+                    saveArr(KEYS.reminders, r); sp.push(`⏰ ${result.reminders_to_add.length} 个提醒`);
+                }
+
+                // Commands
+                if (result.commands && result.commands.length > 0) {
+                    let r = loadArr(KEYS.reminders);
+                    result.commands.forEach(cmd => {
+                        if (cmd.action === 'delete_last_diary') { const d = loadArr(KEYS.diaries); if (d.length) { d.shift(); saveArr(KEYS.diaries, d); sp.push('🗑 删了日记') } }
+                        else if (cmd.action === 'delete_reminder' && cmd.target_keyword) { const kw = cmd.target_keyword.toLowerCase(); r = r.filter(x => !x.message.toLowerCase().includes(kw)); sp.push('🗑 删了提醒') }
+                    });
+                    saveArr(KEYS.reminders, r);
+                }
+
+                // Persona (explicit + auto-extracted)
+                if (result.persona_updates && result.persona_updates.length > 0) {
+                    const p = loadObj(KEYS.persona);
+                    result.persona_updates.forEach(u => { if (u.key && u.value) p[u.key] = u.value });
+                    saveObj(KEYS.persona, p); sp.push('🧠 已记住');
+                }
+
+                if (result.query_answer) response += result.query_answer + '\n\n';
+                if (result.reflection) response += result.reflection;
+                if (!response.trim()) response = '收到！已处理完毕 ✦';
+                if (sp.length) response += '\n\n`' + sp.join(' · ') + '`';
+                addLumiMsg(response.trim());
+                setStatus(sp.join(' · ') || '处理完成 ✦', true);
+            } catch (err) {
+                addLumiMsg('抱歉，出了点小问题 😵‍💫\n\n`' + err.message + '`');
+                setStatus('出错了', true);
+            } finally { setAvatar(''); document.getElementById('sendBtn').disabled = false }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // LLM CALL — context includes persona + todos + diary + reminders
+        // ═══════════════════════════════════════════════════════════════
+        async function callLumi(text, apiKey) {
+            const diaries = loadArr(KEYS.diaries).slice(0, 30).map(d => `[${d.date}] ${d.text}`).join('\n');
+            const rems = loadArr(KEYS.reminders).filter(r => !r.done).map(r => `[${new Date(r.time).toLocaleString()}] ${r.message}`).join('\n');
+            const todos = loadArr(KEYS.todos);
+            const todoCtx = todos.map(t => {
+                let s = `[${t.priority || 'medium'}${t.deadline ? ' DUE:' + t.deadline : ''}] ${t.project ? t.project + ': ' : ''}${t.task}`;
+                if (t.notes) s += ` (${t.notes})`;
+                if (t.subtasks && t.subtasks.length > 0) s += '\n  subtasks: ' + t.subtasks.map(st => (st.done ? '[x] ' : '[ ] ') + st.text).join(', ');
+                return s;
+            }).join('\n');
+            const persona = loadObj(KEYS.persona);
+            const personaCtx = Object.entries(persona).map(([k, v]) => `- ${k}: ${v}`).join('\n');
+            const now = new Date(), days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const nowStr = `${now.toLocaleString()} (${days[now.getDay()]})`;
+
+            const sys = `You are Lumi, a professional yet warm AI personal secretary. Current time: ${nowStr}.
+
+USER PERSONA (long-term memory):
+${personaCtx || 'None yet.'}
+
+USER'S DIARY (recent):
+${diaries || 'None.'}
+
+USER'S TO-DOS:
+${todoCtx || 'None.'}
+
+USER'S REMINDERS:
+${rems || 'None.'}
+
+Return ONLY valid JSON:
+{
+  "input_type": "diary"|"query"|"both"|"chit-chat"|"brainstorm"|"command"|"persona_update"|"todo",
+  "reflection": "warm reply in user's language, use markdown formatting",
+  "query_answer": "answer from memory/todos/schedule (if query/both, else null)",
+  "reminders_to_add": [{"message":"...","time":"YYYY-MM-DDTHH:mm:ss"}],
+  "todo_actions": [
+    {
+      "action": "add_todo"|"update_todo"|"complete_todo"|"delete_todo",
+      "task": "task description",
+      "project": "project name or null",
+      "notes": "progress notes or null",
+      "target_keyword": "keyword to match existing todo",
+      "priority": "high"|"medium"|"low",
+      "deadline": "YYYY-MM-DD or null",
+      "subtasks": ["subtask 1","subtask 2"]
+    }
+  ],
+  "commands": [{"action":"delete_last_diary"|"delete_reminder","target_keyword":"..."}],
+  "persona_updates": [{"key":"...","value":"..."}]
+}
+
+RULES:
+1. REPLY IN SAME LANGUAGE AS USER.
+2. Use **markdown** in reflection/query_answer.
+3. TODO:
+   - "complete_todo" and "delete_todo" both REMOVE the item entirely (user wants: add freely, delete when done)
+   - When user says "X做完了,接下来是Y": delete X + add Y
+   - For big tasks, add subtasks array to break them down
+   - Infer priority from urgency ("紧急"→high, "有空"→low)
+   - Infer deadline from time ("周五前"→YYYY-MM-DD)
+   - "update_todo" can add new subtasks or change notes/deadline/priority
+4. AUTO PERSONA: Whenever user reveals personal info naturally, add persona_updates:
+   - Name, job, hobbies, patterns, preferences, goals
+   - E.g. "我今天又加班了" → {"key":"work_pattern","value":"经常加班"}
+5. Be a capable, caring secretary.`;
+
+            chatH.push({ role: 'user', content: text });
+            if (chatH.length > 20) chatH.splice(0, chatH.length - 20);
+            const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST', headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'system', content: sys }, ...chatH], response_format: { type: 'json_object' }, temperature: 0.2 })
+            });
+            const data = await res.json();
+            if (!data.choices) throw new Error(data.error?.message || 'API error');
+            const result = JSON.parse(data.choices[0].message.content);
+            chatH.push({ role: 'assistant', content: data.choices[0].message.content });
+            saveChatCtx(); return result;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // VOICE
+        // ═══════════════════════════════════════════════════════════════
+        async function toggleRecording() {
+            const apiKey = localStorage.getItem(KEYS.apiKey);
+            if (!apiKey) { addLumiMsg('请先在 **设置** 里填写 API Key 🔑'); return }
+            const btn = document.getElementById('recordBtn');
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream); audioChunks = [];
+                    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data) };
+                    mediaRecorder.onstop = async () => {
+                        setStatus('转写中...');
+                        try {
+                            const blob = new Blob(audioChunks, { type: 'audio/webm' }), fd = new FormData();
+                            fd.append('file', blob, 'audio.webm'); fd.append('model', 'whisper-large-v3-turbo');
+                            const r = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', { method: 'POST', headers: { 'Authorization': `Bearer ${apiKey}` }, body: fd });
+                            const d = await r.json();
+                            if (d.text) { document.getElementById('chatInput').value = d.text; autoResize(document.getElementById('chatInput')); setStatus('转写完成 ✦', true) }
+                            else setStatus('没有录到声音', true);
+                        } catch (err) { setStatus('转写失败', true) }
+                    };
+                    mediaRecorder.start(); isRecording = true; btn.classList.add('recording'); btn.textContent = '⏹'; setStatus('🔴 聆听中...');
+                } catch { addLumiMsg('无法访问麦克风 😅') }
+            } else {
+                mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t => t.stop());
+                isRecording = false; btn.classList.remove('recording'); btn.textContent = '🎙';
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TODO — with subtasks, quick add, and delete-when-done
+        // ═══════════════════════════════════════════════════════════════
+        function quickAddTodo() {
+            const input = document.getElementById('quickTodoInput'), text = input.value.trim();
+            if (!text) return;
+            const todos = loadArr(KEYS.todos);
+            todos.push({ id: Date.now(), created_at: new Date().toISOString(), updated_at: new Date().toISOString(), project: '', task: text, notes: '', priority: 'medium', deadline: '', subtasks: [] });
+            saveArr(KEYS.todos, todos); input.value = ''; renderTodos(); updateBadge();
+        }
+
+        function renderTodos() {
+            const todos = loadArr(KEYS.todos);
+            const overdue = todos.filter(t => t.deadline && new Date(t.deadline) < new Date()).length;
+            document.getElementById('todoStats').innerHTML = `
+        <div class="stat-chip"><div class="stat-num" style="color:var(--accent)">${todos.length}</div><div class="stat-label">总任务</div></div>
+        ${overdue > 0 ? `<div class="stat-chip"><div class="stat-num" style="color:var(--error)">${overdue}</div><div class="stat-label">已过期</div></div>` : ''}
+    `;
+            const list = document.getElementById('todoList');
+            if (todos.length === 0) {
+                list.innerHTML = '<div class="todo-empty"><span class="icon">📋</span>还没有待办事项<br><span style="font-size:12px;margin-top:6px;display:block">在上方输入框快速添加，或在聊天中告诉 Lumi</span></div>';
+                return;
+            }
+            // Sort: overdue first, then high priority, then by creation
+            const sorted = [...todos].sort((a, b) => {
+                const aO = a.deadline && new Date(a.deadline) < new Date() ? 0 : 1;
+                const bO = b.deadline && new Date(b.deadline) < new Date() ? 0 : 1;
+                if (aO !== bO) return aO - bO;
+                const p = { high: 0, medium: 1, low: 2 }; return (p[a.priority] || 1) - (p[b.priority] || 1);
+            });
+            list.innerHTML = sorted.map(t => todoCardHTML(t)).join('');
+        }
+
+        function todoCardHTML(t) {
+            const isOverdue = t.deadline && new Date(t.deadline) < new Date();
+            const isHigh = t.priority === 'high';
+            let deadlineHTML = '';
+            if (t.deadline) {
+                const diff = Math.ceil((new Date(t.deadline) - new Date()) / (864e5));
+                let cls = 'normal', txt = `📅 ${t.deadline}`;
+                if (diff < 0) { cls = 'urgent'; txt = `🚨 已过期 ${Math.abs(diff)} 天` }
+                else if (diff === 0) { cls = 'urgent'; txt = '🔥 今天到期' }
+                else if (diff <= 3) { cls = 'soon'; txt = `⚡ ${diff} 天后到期` }
+                deadlineHTML = `<div class="todo-deadline ${cls}">${txt}</div>`;
+            }
+            const prioHTML = t.priority && t.priority !== 'medium' ? `<span class="todo-priority ${t.priority}">${t.priority === 'high' ? '🔴 紧急' : '🟢 低'}</span>` : '';
+
+            // Subtasks
+            let subHTML = '';
+            if (t.subtasks && t.subtasks.length > 0) {
+                subHTML = '<div class="todo-subtasks">' + t.subtasks.map((s, i) =>
+                    `<div class="todo-subtask${s.done ? ' done' : ''}">
+                <button class="todo-subtask-check${s.done ? ' checked' : ''}" onclick="toggleSubtask(${t.id},${i})">${s.done ? '✓' : ''}</button>
+                <span>${esc(s.text)}</span>
+            </div>`
+                ).join('') + '</div>';
+            }
+
+            return `<div class="todo-card${isOverdue ? ' overdue' : ''}${isHigh ? ' high-prio' : ''}">
+        ${t.project ? `<div class="todo-project">📁 ${esc(t.project)}</div>` : ''}
+        <div class="todo-task">${esc(t.task)}</div>
+        ${t.notes ? `<div class="todo-notes">📝 ${esc(t.notes)}</div>` : ''}
+        ${deadlineHTML}${subHTML}
+        <div class="todo-meta">
+            <div style="display:flex;gap:6px;align-items:center">${prioHTML}</div>
+            <div style="display:flex;gap:6px">
+                <button class="btn-todo-done" onclick="completeTodo(${t.id})">✓ 完成</button>
+                <button class="btn-todo-del" onclick="deleteTodo(${t.id})">✕</button>
+            </div>
+        </div>
+    </div>`;
+        }
+
+        function toggleSubtask(todoId, subIdx) {
+            const todos = loadArr(KEYS.todos), t = todos.find(x => x.id === todoId);
+            if (t && t.subtasks && t.subtasks[subIdx]) { t.subtasks[subIdx].done = !t.subtasks[subIdx].done; t.updated_at = new Date().toISOString() }
+            saveArr(KEYS.todos, todos); renderTodos();
+        }
+
+        function completeTodo(id) {
+            const todos = loadArr(KEYS.todos).filter(t => t.id !== id);
+            saveArr(KEYS.todos, todos); renderTodos(); updateBadge();
+        }
+
+        function deleteTodo(id) { completeTodo(id) } // same behavior: remove
+
+        function updateBadge() {
+            const n = loadArr(KEYS.todos).length;
+            const badge = document.getElementById('todoBadge');
+            if (n > 0) { badge.style.display = 'flex'; badge.textContent = n } else badge.style.display = 'none';
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // HISTORY
+        // ═══════════════════════════════════════════════════════════════
+        function renderHistory() {
+            const diaries = loadArr(KEYS.diaries), list = document.getElementById('historyList');
+            if (!diaries.length) { list.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--dim)"><span style="font-size:40px;display:block;margin-bottom:10px;opacity:.4">📖</span>还没有日记~</div>'; return }
+            list.innerHTML = diaries.map(d => `<div class="history-card"><div class="history-date">LOG ${esc(d.date)}</div><div class="history-text">${esc(d.text)}</div>${d.reflection ? `<div class="history-reflection">✦ ${esc(d.reflection)}</div>` : ''}</div>`).join('');
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // SETTINGS
+        // ═══════════════════════════════════════════════════════════════
+        function saveKey() { localStorage.setItem(KEYS.apiKey, document.getElementById('apiKeyInput').value) }
+        function exportData() {
+            const backup = { export_time: new Date().toISOString(), diaries: loadArr(KEYS.diaries), reminders: loadArr(KEYS.reminders), todos: loadArr(KEYS.todos), persona: loadObj(KEYS.persona), chat: chatH };
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }));
+            a.download = `Lumi_Backup_${Date.now()}.json`; a.click();
+        }
+        function importData() { document.getElementById('importFile').click() }
+        function handleImport(e) {
+            const f = e.target.files[0]; if (!f) return; const r = new FileReader();
+            r.onload = ev => {
+                try {
+                    const d = JSON.parse(ev.target.result);
+                    if (d.diaries) saveArr(KEYS.diaries, d.diaries); if (d.reminders) saveArr(KEYS.reminders, d.reminders);
+                    if (d.todos) saveArr(KEYS.todos, d.todos); if (d.persona) saveObj(KEYS.persona, d.persona);
+                    if (d.chat) { chatH = d.chat; saveChatCtx() }
+                    renderTodos(); renderHistory(); updateBadge(); addLumiMsg('数据导入成功！ ✦');
+                } catch { addLumiMsg('导入失败，请检查文件格式 😅') }
+            }; r.readAsText(f);
+        }
+        function clearAllData() {
+            if (!confirm('确定要清除所有数据吗？此操作不可恢复！')) return;
+            Object.values(KEYS).forEach(k => localStorage.removeItem(k)); localStorage.removeItem('lumi_ui_msgs');
+            chatH = []; document.getElementById('chatMessages').innerHTML = '';
+            renderTodos(); renderHistory(); updateBadge(); addLumiMsg('所有数据已清除。从零开始吧 ✦');
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // UTILS
+        // ═══════════════════════════════════════════════════════════════
+        function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML }
+        function initParticles() {
+            const c = document.getElementById('particles'), colors = ['var(--accent)', 'var(--accent2)', 'var(--success)'];
+            for (let i = 0; i < 15; i++) {
+                const p = document.createElement('div'); p.className = 'particle';
+                p.style.left = Math.random() * 100 + '%'; p.style.animationDuration = (8 + Math.random() * 12) + 's';
+                p.style.animationDelay = Math.random() * 10 + 's'; p.style.background = colors[Math.floor(Math.random() * colors.length)];
+                p.style.width = p.style.height = (2 + Math.random() * 3) + 'px'; c.appendChild(p)
+            }
+        }
+    </script>
+</body>
+
+</html>

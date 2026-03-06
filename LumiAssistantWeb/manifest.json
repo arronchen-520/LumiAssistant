@@ -1,0 +1,15 @@
+{
+  "name": "Lumi Assistant",
+  "short_name": "Lumi",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0f0f14",
+  "theme_color": "#0f0f14",
+  "icons": [
+    {
+      "src": "icon.jpg",
+      "sizes": "512x512",
+      "type": "image/jpg"
+    }
+  ]
+}
