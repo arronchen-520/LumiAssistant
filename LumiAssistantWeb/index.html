@@ -971,6 +971,11 @@
     <div class="content">
         <!-- Chat Tab -->
         <div id="tab-chat" class="tab-content active">
+            <div style="text-align: right; padding: 0 16px 8px;">
+                <button onclick="clearChat()"
+                    style="background: none; border: none; color: var(--dim); font-size: 11px; cursor: pointer;">✕
+                    清空对话</button>
+            </div>
             <div class="chat-messages" id="chatMessages"></div>
         </div>
 
@@ -1123,6 +1128,16 @@
             saveArr('lumi_ui_msgs', msgs.slice(-50));
         }
         function saveChatCtx() { saveArr(KEYS.chatCtx, chatH.slice(-20)) }
+
+        function clearChat() {
+            if (confirm('确定要清空当前的对话记录吗？这不会影响你的待办、笔记或长期记忆。')) {
+                document.getElementById('chatMessages').innerHTML = '';
+                chatH = [];
+                saveArr('lumi_ui_msgs', []);
+                saveChatCtx();
+                addLumiMsg(getGreeting());
+            }
+        }
 
         // ═══════════════════════════════════════════════════════════════
         // TEXTAREA AUTO-RESIZE
