@@ -1330,7 +1330,7 @@ RULES:
    - "complete_todo" and "delete_todo" both REMOVE the item entirely (user wants: add freely, delete when done)
    - When user says "X做完了,接下来是Y": delete X + add Y
    - For big tasks, add subtasks array to break them down
-   - Infer priority from urgency ("紧急"→high, "有空"→low)
+   - Infer priority from urgency ("紧急"→high, "有空"→low). If unstated, assign relative priority (high/medium/low) by judging its nature compared to existing TO-DOS.
    - Infer deadline from time ("周五前"→YYYY-MM-DD)
    - "update_todo" can add new subtasks or change notes/deadline/priority
 4. AUTO PERSONA: Whenever user reveals personal info naturally, add persona_updates:

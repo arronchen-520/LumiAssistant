@@ -15,7 +15,7 @@
 [![Ollama](https://img.shields.io/badge/LLM-Ollama%20%2F%20Groq%20%2F%20OpenAI-a78bfa?style=flat-square)](https://ollama.com)
 [![Groq](https://img.shields.io/badge/STT-Groq%20Whisper-34d399?style=flat-square)](https://console.groq.com)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-64748b?style=flat-square)](LICENSE)
-[![Demo](https://img.shields.io/badge/Live%20Demo-lumi--assistant.netlify.app-34d399?style=flat-square&logo=netlify&logoColor=white)](https://lumi-assistant.netlify.app)
+[![Demo](https://img.shields.io/badge/Live%20Demo-lumi--assistant--psi.vercel.app-34d399?style=flat-square&logo=vercel&logoColor=white)](https://lumi-assistant-psi.vercel.app)
 [![Stars](https://img.shields.io/github/stars/arronchen-520/LumiAssistant?style=flat-square&color=fde68a)](https://github.com/arronchen-520/LumiAssistant/stargazers)
 
 <br/>
@@ -38,7 +38,7 @@
 | **日记** | ✅ 全文检索 + 记忆问答 | ✅ AI 日记 + 情感反馈 |
 | **人设** | ✅ 长期记忆 | ✅ 自动提取 + 长期记忆 |
 | **隐私** | ✅ 纯本地（Ollama） | ✅ 数据不离你手机 |
-| **部署** | `python main.py` | 访问 [lumi-assistant.netlify.app](https://lumi-assistant.netlify.app) |
+| **部署** | `python main.py` | 访问 [lumi-assistant-psi.vercel.app](https://lumi-assistant-psi.vercel.app) |
 
 ---
 
@@ -154,24 +154,25 @@ python main.py
 
 ### 🌐 Web 版
 
-**在线体验：** 👉 [lumi-assistant.netlify.app](https://lumi-assistant.netlify.app)
+**在线体验与使用：** 👉 [lumi-assistant-psi.vercel.app](https://lumi-assistant-psi.vercel.app)
 
-**方式一：直接打开**
+**移动端部署（最简单的方法）：**
+最简单的方法是直接在手机浏览器中打开上述网站！
+如果想要更像原生的体验，可以使用 PWA：
+1. 部署后用手机浏览器访问网站
+2. 点击「添加到主屏幕」
+3. 从桌面图标打开 = 全屏 App 体验
+
+**本地测试：**
 ```bash
 # 双击 LumiAssistantWeb/index.html
 ```
 
-**方式二：部署到 Netlify**
+**自己部署（如需）：**
 ```bash
-# 拖拽 LumiAssistantWeb/ 文件夹到 netlify.com/drop
-# 或用 CLI
-netlify deploy --dir ./LumiAssistantWeb
+# 部署到 Vercel 或 Netlify 均可
+# 参考各自平台的部署指南，例如直接导入 Github 仓库即可。
 ```
-
-**方式三：手机 PWA**
-1. 部署后用手机浏览器访问
-2. 点击「添加到主屏幕」
-3. 从桌面图标打开 = 全屏 App 体验
 
 > Web 版只需要一个免费的 [Groq API Key](https://console.groq.com)，在 ⚙️ 设置 里填入即可。
 
