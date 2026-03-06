@@ -86,13 +86,13 @@ def init_db():
             -- Rebuild FTS for any rows that existed before the trigger was created
             -- (safe to run multiple times — INSERT OR IGNORE skips existing rowids)
         """)
-    # Migration: ensure todos table has priority and deadline columns
-    try:
-        conn.execute("SELECT priority FROM todos LIMIT 1")
-    except Exception:
-        conn.execute("ALTER TABLE todos ADD COLUMN priority TEXT DEFAULT 'medium'")
-        conn.execute("ALTER TABLE todos ADD COLUMN deadline TEXT")
-        conn.commit()
+        # Migration: ensure todos table has priority and deadline columns
+        try:
+            conn.execute("SELECT priority FROM todos LIMIT 1")
+        except Exception:
+            conn.execute("ALTER TABLE todos ADD COLUMN priority TEXT DEFAULT 'medium'")
+            conn.execute("ALTER TABLE todos ADD COLUMN deadline TEXT")
+            conn.commit()
 
         # Backfill FTS for pre-existing rows (idempotent)
         conn.execute("""
