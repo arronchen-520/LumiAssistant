@@ -1368,7 +1368,9 @@ RULES:
                         setStatus('转写中...');
                         try {
                             const blob = new Blob(audioChunks, { type: 'audio/webm' }), fd = new FormData();
-                            fd.append('file', blob, 'audio.webm'); fd.append('model', 'whisper-large-v3-turbo');
+                            fd.append('file', blob, 'audio.webm');
+                            fd.append('model', 'whisper-large-v3-turbo');
+                            fd.append('prompt', '这是一段对话记录，请加上逗号、句号和问号等标点符号。');
                             const r = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', { method: 'POST', headers: { 'Authorization': `Bearer ${apiKey}` }, body: fd });
                             const d = await r.json();
                             if (d.text) { document.getElementById('chatInput').value = d.text; autoResize(document.getElementById('chatInput')); setStatus('转写完成 ✦', true) }
