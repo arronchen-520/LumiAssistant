@@ -192,7 +192,7 @@
             flex: 1;
             overflow-y: auto;
             overflow-x: hidden;
-            padding: 16px 16px 86px
+            padding: 16px 16px 16px
         }
 
         .tab-content {
@@ -216,19 +216,34 @@
             }
         }
 
-        .tab-bar {
+        .bottom-bar {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
             z-index: 100;
-            background: rgba(24, 24, 32, .92);
+            background: rgba(24, 24, 32, .95);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(124, 140, 248, .08);
+        }
+
+        .bottom-input-row {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+            padding: 10px 12px 8px;
+            border-bottom: 1px solid rgba(124, 140, 248, .06);
+        }
+
+        .bottom-input-row.hidden {
+            display: none;
+        }
+
+        .tab-bar {
             display: flex;
             justify-content: space-around;
-            padding: 8px 0 max(8px, env(safe-area-inset-bottom));
-            border-top: 1px solid rgba(124, 140, 248, .08)
+            padding: 6px 0 max(6px, env(safe-area-inset-bottom));
         }
 
         .tab-btn {
@@ -426,17 +441,7 @@
             color: var(--muted)
         }
 
-        /* Chat input — textarea that auto-resizes */
-        .chat-input-area {
-            position: sticky;
-            bottom: 0;
-            padding: 10px 0;
-            display: flex;
-            gap: 8px;
-            align-items: flex-end;
-            background: linear-gradient(transparent, var(--bg) 30%);
-            padding-top: 20px
-        }
+        /* Chat input — moved to fixed bottom-bar */
 
         .chat-input {
             flex: 1;
@@ -967,12 +972,6 @@
         <!-- Chat Tab -->
         <div id="tab-chat" class="tab-content active">
             <div class="chat-messages" id="chatMessages"></div>
-            <div class="chat-input-area">
-                <button class="btn-record" id="recordBtn" onclick="toggleRecording()">🎙</button>
-                <textarea class="chat-input" id="chatInput" rows="1" placeholder="跟 Lumi 说点什么..."
-                    oninput="autoResize(this)"></textarea>
-                <button class="btn-send" id="sendBtn" onclick="sendMessage()">↑</button>
-            </div>
         </div>
 
         <!-- Todo Tab -->
@@ -993,16 +992,36 @@
 
         <!-- Settings Tab -->
         <div id="tab-settings" class="tab-content">
-            <div class="privacy-banner"><strong>🔒 隐私承诺</strong><br>你的 API Key、日记和所有数据只存在于你设备的浏览器中，绝不上传。</div>
+            <div class="privacy-banner"><strong>🔒 隐私承诺</strong><br>你的 API Key、长期记忆、记录的想法和所有数据只存在于你设备的浏览器中，绝不上传。</div>
             <div class="setting-group">
                 <div class="setting-title">🔑 Groq API Key</div>
                 <input type="password" class="setting-input" id="apiKeyInput" placeholder="gsk_..."
                     onchange="saveKey()">
                 <div class="setting-hint">在 <a href="https://console.groq.com" target="_blank"
-                        style="color:var(--accent)">console.groq.com</a> 免费获取</div>
+                        style="color:var(--accent)">console.groq.com</a> 获取，<strong>完全免费且只需注册即可</strong>提取密钥。</div>
             </div>
             <div class="setting-group">
-                <div class="setting-title">💾 数据管理</div>
+                <div class="setting-title">🧠 长期记忆 (Persona)</div>
+                <div id="personaList" style="font-size:13px; color:var(--text); line-height:1.5;"></div>
+            </div>
+            <div class="setting-group">
+                <div class="setting-title">⚙️ 偏好设置</div>
+                <div style="font-size:13px; margin-bottom:6px; color:var(--text); line-height:1.5;">每次对话携带的笔记记忆条数：</div>
+                <input type="number" class="setting-input" id="historyLimitInput" placeholder="20" min="0" max="100"
+                    onchange="saveHistoryLimit()">
+                <div class="setting-hint">默认 20 条。设得越大 Lumi 回忆的近期知识越多，但有可能会略微变慢。</div>
+            </div>
+            <div class="setting-group"
+                style="background: linear-gradient(135deg, rgba(124, 140, 248, .08), rgba(180, 140, 250, .08)); border: 1px solid rgba(124, 140, 248, .15);">
+                <div class="setting-title" style="color:var(--accent2)">� 添加到主屏幕 (独占 App 体验)</div>
+                <div style="font-size:12px; color:var(--text); line-height:1.5;">
+                    想要像原生 App 一样全屏使用 Lumi 并且告别网址栏？<br><br>
+                    <strong>iOS / Safari:</strong> 点击底部浏览器中间的「分享」图标，选择「添加到主屏幕」。<br><br>
+                    <strong>Android / Chrome:</strong> 点击浏览器右上角「⋮」菜单，选择「添加到主屏幕」或「安装应用」。
+                </div>
+            </div>
+            <div class="setting-group">
+                <div class="setting-title">�💾 数据管理</div>
                 <button class="setting-btn setting-btn-primary" onclick="exportData()" style="margin-bottom:8px">📦
                     导出全部数据</button>
                 <button class="setting-btn setting-btn-outline" onclick="importData()">📂 导入数据</button>
@@ -1016,30 +1035,28 @@
         </div>
     </div>
 
-    <!-- GitHub Footer -->
-    <div style="text-align:center;padding:10px 0 4px;font-size:11px;color:#4a4a66">
-        <a href="https://github.com/arronchen-520/LumiAssistant" target="_blank"
-            style="color:#7c8cf8;text-decoration:none">
-            ⭐ Star on GitHub
-        </a>
-        <span style="margin:0 6px;color:#4a4a66">·</span>
-        <span>Made with 💜 by Arron</span>
-    </div>
-
-    <!-- Tab Bar -->
-    <div class="tab-bar">
-        <button class="tab-btn active" onclick="switchTab('chat',this)"><span class="icon">💬</span>聊天</button>
-        <button class="tab-btn" onclick="switchTab('todo',this)" id="todoTabBtn"><span class="icon">✅</span>待办<span
-                class="badge" id="todoBadge" style="display:none">0</span></button>
-        <button class="tab-btn" onclick="switchTab('history',this)"><span class="icon">📚</span>历史</button>
-        <button class="tab-btn" onclick="switchTab('settings',this)"><span class="icon">⚙️</span>设置</button>
+    <!-- Fixed Bottom Bar: input row + tab bar -->
+    <div class="bottom-bar">
+        <div class="bottom-input-row" id="bottomInputRow">
+            <button class="btn-record" id="recordBtn" onclick="toggleRecording()">🎙</button>
+            <textarea class="chat-input" id="chatInput" rows="1" placeholder="跟 Lumi 说点什么..."
+                oninput="autoResize(this)"></textarea>
+            <button class="btn-send" id="sendBtn" onclick="sendMessage()">↑</button>
+        </div>
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('chat',this)"><span class="icon">💬</span>聊天</button>
+            <button class="tab-btn" onclick="switchTab('todo',this)" id="todoTabBtn"><span class="icon">✅</span>待办<span
+                    class="badge" id="todoBadge" style="display:none">0</span></button>
+            <button class="tab-btn" onclick="switchTab('history',this)"><span class="icon">📚</span>笔记</button>
+            <button class="tab-btn" onclick="switchTab('settings',this)"><span class="icon">⚙️</span>设置</button>
+        </div>
     </div>
 
     <script>
         // ═══════════════════════════════════════════════════════════════
         // DATA LAYER
         // ═══════════════════════════════════════════════════════════════
-        const KEYS = { diaries: 'lumi_diaries', reminders: 'lumi_reminders', todos: 'lumi_todos', persona: 'lumi_persona', apiKey: 'GROQ_API_KEY', chatCtx: 'lumi_chat_ctx' };
+        const KEYS = { diaries: 'lumi_diaries', reminders: 'lumi_reminders', todos: 'lumi_todos', persona: 'lumi_persona', apiKey: 'GROQ_API_KEY', chatCtx: 'lumi_chat_ctx', historyLimit: 'lumi_history_limit' };
         function loadArr(k) { try { return JSON.parse(localStorage.getItem(k) || '[]') } catch { return [] } }
         function saveArr(k, d) { localStorage.setItem(k, JSON.stringify(d)) }
         function loadObj(k) { try { return JSON.parse(localStorage.getItem(k) || '{}') } catch { return {} } }
@@ -1060,12 +1077,19 @@
         window.onload = () => {
             const k = localStorage.getItem(KEYS.apiKey);
             if (k) document.getElementById('apiKeyInput').value = k;
+            const hLimit = localStorage.getItem(KEYS.historyLimit);
+            if (hLimit) document.getElementById('historyLimitInput').value = hLimit;
             initParticles();
             // Restore chat UI
             const saved = loadArr('lumi_ui_msgs');
             if (saved.length > 0) saved.forEach(m => { if (m.t === 'l') addLumiMsg(m.v, false); else addUserMsg(m.v, false) });
             else addLumiMsg(getGreeting());
             renderTodos(); renderHistory(); updateBadge();
+            // Set initial content bottom padding to match bottom bar
+            setTimeout(() => {
+                const bottomBar = document.querySelector('.bottom-bar');
+                if (bottomBar) document.querySelector('.content').style.paddingBottom = (bottomBar.offsetHeight + 8) + 'px';
+            }, 0);
             // Enter to send in chat
             document.getElementById('chatInput').addEventListener('keydown', e => {
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
@@ -1113,7 +1137,19 @@
             document.querySelectorAll('.tab-btn').forEach(e => e.classList.remove('active'));
             document.getElementById(`tab-${id}`).classList.add('active');
             btn.classList.add('active');
-            if (id === 'todo') renderTodos(); if (id === 'history') renderHistory();
+            // Show/hide chat input row
+            const inputRow = document.getElementById('bottomInputRow');
+            if (id === 'chat') {
+                inputRow.classList.remove('hidden');
+            } else {
+                inputRow.classList.add('hidden');
+            }
+            // Adjust content padding to account for bottom bar height
+            const bottomBar = document.querySelector('.bottom-bar');
+            document.querySelector('.content').style.paddingBottom = (bottomBar.offsetHeight + 8) + 'px';
+            if (id === 'todo') renderTodos();
+            if (id === 'history') renderHistory();
+            if (id === 'settings') typeof renderPersona === 'function' && renderPersona();
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -1189,11 +1225,11 @@
                     saveArr(KEYS.todos, todos); renderTodos(); updateBadge();
                 }
 
-                // Diary
-                if (['diary', 'both'].includes(result.input_type)) {
+                // History / Idea
+                if (['diary', 'both', 'idea', 'brainstorm'].includes(result.input_type)) {
                     const d = loadArr(KEYS.diaries);
                     d.unshift({ id: Date.now(), date: new Date().toLocaleString(), text, reflection: result.reflection || '' });
-                    saveArr(KEYS.diaries, d); sp.push('📝 已记录');
+                    saveArr(KEYS.diaries, d); sp.push('�已记录想法');
                 }
 
                 // Reminders
@@ -1236,7 +1272,8 @@
         // LLM CALL — context includes persona + todos + diary + reminders
         // ═══════════════════════════════════════════════════════════════
         async function callLumi(text, apiKey) {
-            const diaries = loadArr(KEYS.diaries).slice(0, 30).map(d => `[${d.date}] ${d.text}`).join('\n');
+            const limit = parseInt(localStorage.getItem(KEYS.historyLimit) || '20');
+            const diaries = loadArr(KEYS.diaries).slice(0, limit).map(d => `[${d.date}] ${d.text}`).join('\n');
             const rems = loadArr(KEYS.reminders).filter(r => !r.done).map(r => `[${new Date(r.time).toLocaleString()}] ${r.message}`).join('\n');
             const todos = loadArr(KEYS.todos);
             const todoCtx = todos.map(t => {
@@ -1255,7 +1292,7 @@
 USER PERSONA (long-term memory):
 ${personaCtx || 'None yet.'}
 
-USER'S DIARY (recent):
+USER'S RECORDED IDEAS & HISTORY (recent):
 ${diaries || 'None.'}
 
 USER'S TO-DOS:
@@ -1266,7 +1303,7 @@ ${rems || 'None.'}
 
 Return ONLY valid JSON:
 {
-  "input_type": "diary"|"query"|"both"|"chit-chat"|"brainstorm"|"command"|"persona_update"|"todo",
+  "input_type": "idea"|"query"|"both"|"chit-chat"|"brainstorm"|"command"|"persona_update"|"todo",
   "reflection": "warm reply in user's language, use markdown formatting",
   "query_answer": "answer from memory/todos/schedule (if query/both, else null)",
   "reminders_to_add": [{"message":"...","time":"YYYY-MM-DDTHH:mm:ss"}],
@@ -1299,7 +1336,8 @@ RULES:
 4. AUTO PERSONA: Whenever user reveals personal info naturally, add persona_updates:
    - Name, job, hobbies, patterns, preferences, goals
    - E.g. "我今天又加班了" → {"key":"work_pattern","value":"经常加班"}
-5. Be a capable, caring secretary.`;
+5. IDEA/HISTORY: If the user explicitly proposes an idea, or records a thought/story that is NOT a todo (e.g. "我想到一个事情如何解决"), classify it as "idea" so it adds to History.
+6. Be a capable, caring secretary.`;
 
             chatH.push({ role: 'user', content: text });
             if (chatH.length > 20) chatH.splice(0, chatH.length - 20);
@@ -1368,12 +1406,34 @@ RULES:
                 list.innerHTML = '<div class="todo-empty"><span class="icon">📋</span>还没有待办事项<br><span style="font-size:12px;margin-top:6px;display:block">在上方输入框快速添加，或在聊天中告诉 Lumi</span></div>';
                 return;
             }
-            // Sort: overdue first, then high priority, then by creation
+            // Sort: Overdue first, then by closest deadline, then by priority (high>medium>low), then by creation (oldest first)
             const sorted = [...todos].sort((a, b) => {
-                const aO = a.deadline && new Date(a.deadline) < new Date() ? 0 : 1;
-                const bO = b.deadline && new Date(b.deadline) < new Date() ? 0 : 1;
-                if (aO !== bO) return aO - bO;
-                const p = { high: 0, medium: 1, low: 2 }; return (p[a.priority] || 1) - (p[b.priority] || 1);
+                const now = Date.now();
+                const aTime = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+                const bTime = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+
+                // Group 1: Overdue items (time < now) get first priority
+                const aOverdue = aTime < now;
+                const bOverdue = bTime < now;
+                if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
+
+                // Group 2: Deadlines. If both have deadlines (and neither/both are overdue), sort by closest deadline first
+                if (aTime !== Infinity && bTime !== Infinity && aTime !== bTime) {
+                    return aTime - bTime;
+                }
+
+                // Group 3: One has a deadline, one doesn't
+                if (aTime !== Infinity && bTime === Infinity) return -1;
+                if (aTime === Infinity && bTime !== Infinity) return 1;
+
+                // Group 4: Priority
+                const p = { high: 0, medium: 1, low: 2 };
+                const pA = p[a.priority] !== undefined ? p[a.priority] : 1;
+                const pB = p[b.priority] !== undefined ? p[b.priority] : 1;
+                if (pA !== pB) return pA - pB;
+
+                // Group 5: Creation time (fallback to stable sort if no created_at)
+                return (a.id || 0) - (b.id || 0);
             });
             list.innerHTML = sorted.map(t => todoCardHTML(t)).join('');
         }
@@ -1442,14 +1502,74 @@ RULES:
         // ═══════════════════════════════════════════════════════════════
         function renderHistory() {
             const diaries = loadArr(KEYS.diaries), list = document.getElementById('historyList');
-            if (!diaries.length) { list.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--dim)"><span style="font-size:40px;display:block;margin-bottom:10px;opacity:.4">📖</span>还没有日记~</div>'; return }
+            if (!diaries.length) { list.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--dim)"><span style="font-size:40px;display:block;margin-bottom:10px;opacity:.4">�</span>还没有记录过想法或历史~</div>'; return }
             list.innerHTML = diaries.map(d => `<div class="history-card"><div class="history-date">LOG ${esc(d.date)}</div><div class="history-text">${esc(d.text)}</div>${d.reflection ? `<div class="history-reflection">✦ ${esc(d.reflection)}</div>` : ''}</div>`).join('');
         }
 
         // ═══════════════════════════════════════════════════════════════
         // SETTINGS
         // ═══════════════════════════════════════════════════════════════
-        function saveKey() { localStorage.setItem(KEYS.apiKey, document.getElementById('apiKeyInput').value) }
+        function saveHistoryLimit() { localStorage.setItem(KEYS.historyLimit, document.getElementById('historyLimitInput').value); }
+
+        async function saveKey() {
+            const oldKey = localStorage.getItem(KEYS.apiKey);
+            const newKey = document.getElementById('apiKeyInput').value.trim();
+            localStorage.setItem(KEYS.apiKey, newKey);
+            if (!oldKey && newKey) {
+                const initPrompt = 'Lumi你好！我已经配置好了API接口。请你记住你的能力：1. 强大的待办事项管理（支持子任务和优先级）；2. 长期记忆能力，能记住我的喜好习惯；3. 想法记录器（当我说想法时，将其分类为idea并存入历史）。请在长期记忆里记下"Lumi已准备好成为全能助理"，并跟我打个招呼！';
+                addUserMsg('已连接好服务！');
+                setAvatar('thinking'); setStatus('初始化中...');
+                document.getElementById('sendBtn').disabled = true;
+                try {
+                    const result = await callLumi(initPrompt, newKey);
+                    setAvatar('talking'); let response = '', sp = [];
+                    if (result.persona_updates && result.persona_updates.length > 0) {
+                        const p = loadObj(KEYS.persona);
+                        result.persona_updates.forEach(u => { if (u.key && u.value) p[u.key] = u.value });
+                        saveObj(KEYS.persona, p); sp.push('🧠 已记忆能力');
+                    }
+                    if (result.query_answer) response += result.query_answer + '\n\n';
+                    if (result.reflection) response += result.reflection;
+                    if (!response.trim()) response = '我也准备好了 ✦';
+                    if (sp.length) response += '\n\n`' + sp.join(' · ') + '`';
+                    addLumiMsg(response.trim());
+                    setStatus('初始化完成 ✦', true);
+                    typeof renderPersona === 'function' && renderPersona();
+                } catch (e) {
+                    console.error('Init error', e);
+                    addLumiMsg('初始化时出了点问题 😵‍💫');
+                    setStatus('出错了', true);
+                } finally {
+                    setAvatar('');
+                    document.getElementById('sendBtn').disabled = false;
+                }
+            }
+        }
+
+        function renderPersona() {
+            const list = document.getElementById('personaList');
+            if (!list) return;
+            const p = loadObj(KEYS.persona);
+            const keys = Object.keys(p);
+            if (keys.length === 0) {
+                list.innerHTML = '<div style="color:var(--dim)">Lumi 还在了解你中... ✦</div>';
+                return;
+            }
+            list.innerHTML = keys.map(k => {
+                return `<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--card2);padding:8px 0; align-items:flex-start;">
+                    <span style="color:var(--muted);width:35%;word-wrap:break-word;font-weight:600">${esc(k)}</span>
+                    <span style="width:55%;word-wrap:break-word;text-align:right">${esc(p[k])}</span>
+                    <button onclick="deletePersona(this.dataset.key)" data-key="${esc(k).replace(/"/g, '&quot;')}" style="background:none;border:none;color:var(--error);cursor:pointer;padding:0 4px;font-size:14px;height:20px">✕</button>
+                </div>`;
+            }).join('');
+        }
+
+        function deletePersona(k) {
+            const p = loadObj(KEYS.persona);
+            delete p[k];
+            saveObj(KEYS.persona, p);
+            renderPersona();
+        }
         function exportData() {
             const backup = { export_time: new Date().toISOString(), diaries: loadArr(KEYS.diaries), reminders: loadArr(KEYS.reminders), todos: loadArr(KEYS.todos), persona: loadObj(KEYS.persona), chat: chatH };
             const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }));
