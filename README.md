@@ -15,6 +15,7 @@
 [![Ollama](https://img.shields.io/badge/LLM-Ollama%20%2F%20Groq%20%2F%20OpenAI-a78bfa?style=flat-square)](https://ollama.com)
 [![Groq](https://img.shields.io/badge/STT-Groq%20Whisper-34d399?style=flat-square)](https://console.groq.com)
 [![License](https://img.shields.io/badge/License-MIT-64748b?style=flat-square)](LICENSE)
+[![Demo](https://img.shields.io/badge/Live%20Demo-lumilog.netlify.app-34d399?style=flat-square&logo=netlify&logoColor=white)](https://lumilog.netlify.app)
 [![Stars](https://img.shields.io/github/stars/arronchen-520/LumiAssistant?style=flat-square&color=fde68a)](https://github.com/arronchen-520/LumiAssistant/stargazers)
 
 <br/>
@@ -152,6 +153,8 @@ python main.py
 ```
 
 ### 🌐 Web 版
+
+**在线体验：** 👉 [lumilog.netlify.app](https://lumilog.netlify.app)
 
 **方式一：直接打开**
 ```bash
