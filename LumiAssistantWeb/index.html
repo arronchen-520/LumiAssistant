@@ -1406,7 +1406,7 @@ RULES:
                 list.innerHTML = '<div class="todo-empty"><span class="icon">📋</span>还没有待办事项<br><span style="font-size:12px;margin-top:6px;display:block">在上方输入框快速添加，或在聊天中告诉 Lumi</span></div>';
                 return;
             }
-            // Sort: Overdue first, then by closest deadline, then by priority (high>medium>low), then by creation (oldest first)
+            // Sort: Overdue first, then Urgent (High Priority) AND/OR Due Date, then Medium/Low Priority
             const sorted = [...todos].sort((a, b) => {
                 const now = Date.now();
                 const aTime = a.deadline ? new Date(a.deadline).getTime() : Infinity;
@@ -1416,23 +1416,29 @@ RULES:
                 const aOverdue = aTime < now;
                 const bOverdue = bTime < now;
                 if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
+                if (aOverdue && bOverdue) return aTime - bTime; // both overdue, sort closest to now first (earliest)
 
-                // Group 2: Deadlines. If both have deadlines (and neither/both are overdue), sort by closest deadline first
+                // Group 2: Urgent (High priority)
+                const aHigh = a.priority === 'high';
+                const bHigh = b.priority === 'high';
+                if (aHigh !== bHigh) return aHigh ? -1 : 1;
+
+                // Group 3: Deadlines. If both have deadlines (and neither/both are overdue), sort by closest deadline first
                 if (aTime !== Infinity && bTime !== Infinity && aTime !== bTime) {
                     return aTime - bTime;
                 }
 
-                // Group 3: One has a deadline, one doesn't
+                // Group 4: One has a deadline, one doesn't
                 if (aTime !== Infinity && bTime === Infinity) return -1;
                 if (aTime === Infinity && bTime !== Infinity) return 1;
 
-                // Group 4: Priority
+                // Group 5: Priority
                 const p = { high: 0, medium: 1, low: 2 };
                 const pA = p[a.priority] !== undefined ? p[a.priority] : 1;
                 const pB = p[b.priority] !== undefined ? p[b.priority] : 1;
                 if (pA !== pB) return pA - pB;
 
-                // Group 5: Creation time (fallback to stable sort if no created_at)
+                // Group 6: Creation time (fallback to stable sort if no created_at)
                 return (a.id || 0) - (b.id || 0);
             });
             list.innerHTML = sorted.map(t => todoCardHTML(t)).join('');
@@ -1503,7 +1509,18 @@ RULES:
         function renderHistory() {
             const diaries = loadArr(KEYS.diaries), list = document.getElementById('historyList');
             if (!diaries.length) { list.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--dim)"><span style="font-size:40px;display:block;margin-bottom:10px;opacity:.4">�</span>还没有记录过想法或历史~</div>'; return }
-            list.innerHTML = diaries.map(d => `<div class="history-card"><div class="history-date">LOG ${esc(d.date)}</div><div class="history-text">${esc(d.text)}</div>${d.reflection ? `<div class="history-reflection">✦ ${esc(d.reflection)}</div>` : ''}</div>`).join('');
+            list.innerHTML = diaries.map((d, idx) => `<div class="history-card" style="position:relative"><button onclick="deleteHistory(${idx})" style="position:absolute; top:12px; right:12px; background:none; border:none; color:var(--dim); cursor:pointer; font-size:14px; padding:4px;" title="删除">✕</button><div class="history-date">LOG ${esc(d.date)}</div><div class="history-text">${esc(d.text)}</div>${d.reflection ? `<div class="history-reflection">✦ ${esc(d.reflection)}</div>` : ''}</div>`).join('');
+        }
+
+        function deleteHistory(idx) {
+            if (confirm('确定要删除这条笔记吗？')) {
+                const diaries = loadArr(KEYS.diaries);
+                if (idx >= 0 && idx < diaries.length) {
+                    diaries.splice(idx, 1);
+                    saveArr(KEYS.diaries, diaries);
+                    renderHistory();
+                }
+            }
         }
 
         // ═══════════════════════════════════════════════════════════════
