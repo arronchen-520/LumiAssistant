@@ -72,7 +72,9 @@ def init_db():
                 project     TEXT,
                 task        TEXT NOT NULL,
                 status      TEXT DEFAULT 'pending',
-                notes       TEXT
+                notes       TEXT,
+                priority    TEXT DEFAULT 'medium',
+                deadline    TEXT
             );
 
             -- Keep FTS in sync: populate on insert
@@ -84,6 +86,13 @@ def init_db():
             -- Rebuild FTS for any rows that existed before the trigger was created
             -- (safe to run multiple times — INSERT OR IGNORE skips existing rowids)
         """)
+    # Migration: ensure todos table has priority and deadline columns
+    try:
+        conn.execute("SELECT priority FROM todos LIMIT 1")
+    except Exception:
+        conn.execute("ALTER TABLE todos ADD COLUMN priority TEXT DEFAULT 'medium'")
+        conn.execute("ALTER TABLE todos ADD COLUMN deadline TEXT")
+        conn.commit()
 
         # Backfill FTS for pre-existing rows (idempotent)
         conn.execute("""
@@ -287,19 +296,20 @@ def mark_reminder_done(rid: int):
 
 # ── To-Do ─────────────────────────────────────────────────────────────────────
 
-def save_todo(task: str, project: str = None, notes: str = None) -> int:
+def save_todo(task: str, project: str = None, notes: str = None,
+              priority: str = "medium", deadline: str = None) -> int:
     now = datetime.now().isoformat()
     with _db() as conn:
         cur = conn.execute(
-            "INSERT INTO todos (created_at, updated_at, project, task, status, notes) VALUES (?,?,?,?,?,?)",
-            (now, now, project, task, "pending", notes),
+            "INSERT INTO todos (created_at, updated_at, project, task, status, notes, priority, deadline) VALUES (?,?,?,?,?,?,?,?)",
+            (now, now, project, task, "pending", notes, priority or "medium", deadline),
         )
         return cur.lastrowid
 
 
 def get_todos(status: str = None, project: str = None, limit: int = 50) -> list[dict]:
     with _db() as conn:
-        query = "SELECT id, created_at, updated_at, project, task, status, notes FROM todos"
+        query = "SELECT id, created_at, updated_at, project, task, status, notes, priority, deadline FROM todos"
         conditions = []
         params = []
         if status:
@@ -310,7 +320,7 @@ def get_todos(status: str = None, project: str = None, limit: int = 50) -> list[
             params.append(f"%{project}%")
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
-        query += " ORDER BY CASE status WHEN 'in_progress' THEN 0 WHEN 'pending' THEN 1 WHEN 'done' THEN 2 END, updated_at DESC LIMIT ?"
+        query += " ORDER BY CASE status WHEN 'in_progress' THEN 0 WHEN 'pending' THEN 1 WHEN 'done' THEN 2 END, CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 END, deadline ASC NULLS LAST, updated_at DESC LIMIT ?"
         params.append(limit)
         rows = conn.execute(query, params).fetchall()
     return [_todo_row(r) for r in rows]
@@ -328,7 +338,8 @@ def update_todo_status(todo_id: int, status: str, notes: str = None) -> bool:
         return conn.total_changes > 0
 
 
-def update_todo_by_keyword(keyword: str, status: str = None, notes: str = None, new_task: str = None) -> int:
+def update_todo_by_keyword(keyword: str, status: str = None, notes: str = None,
+                           new_task: str = None, priority: str = None, deadline: str = None) -> int:
     now = datetime.now().isoformat()
     with _db() as conn:
         rows = conn.execute("SELECT id FROM todos WHERE task LIKE ? OR project LIKE ?",
@@ -346,6 +357,12 @@ def update_todo_by_keyword(keyword: str, status: str = None, notes: str = None, 
             if new_task:
                 updates.append("task = ?")
                 params.append(new_task)
+            if priority:
+                updates.append("priority = ?")
+                params.append(priority)
+            if deadline:
+                updates.append("deadline = ?")
+                params.append(deadline)
             params.append(r["id"])
             conn.execute(f"UPDATE todos SET {', '.join(updates)} WHERE id = ?", params)
             count += 1
@@ -376,4 +393,6 @@ def _todo_row(r) -> dict:
         "task":       r["task"],
         "status":     r["status"],
         "notes":      r["notes"] or "",
+        "priority":   r["priority"] if "priority" in r.keys() else "medium",
+        "deadline":   (r["deadline"] or "") if "deadline" in r.keys() else "",
     }

@@ -52,7 +52,9 @@ The user has sent text (typed or transcribed from voice). Your job is to:
          "task": "task description",
          "project": "project/category name or null",
          "notes": "progress notes or null",
-         "target_keyword": "keyword to find existing todo item"
+         "target_keyword": "keyword to find existing todo item",
+         "priority": "high | medium | low",
+         "deadline": "YYYY-MM-DD or null"
      }}
   ] (if todo, else null)
 }}
@@ -85,6 +87,9 @@ todo_actions rules:
 - When user says "X is done" or "finished X": action="complete_todo", set target_keyword to identify the existing todo.
 - When user reports progress ("X is at step 2, next is step 3"): action="update_todo", set target_keyword, notes for progress, and optionally add a new add_todo for the next step.
 - You can return MULTIPLE todo_actions in one response (e.g. complete one + add another).
+- Infer priority from urgency cues: "urgent"/"紧急"/"赶紧" → high, "有空再"→ low, default → medium.
+- Infer deadline from time cues: "by Friday" / "周五前" / "下周" → YYYY-MM-DD.
+- For big tasks, consider suggesting subtask breakdown in the reflection.
 - Always give a warm, encouraging reflection when processing todo updates.
 
 User Persona / Long-term Memory for context:

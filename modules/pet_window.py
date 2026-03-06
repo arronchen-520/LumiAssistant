@@ -984,6 +984,35 @@ class DesktopPet:
                  bg=C["card"], fg=task_fg,
                  wraplength=440, justify="left").pack(anchor="w", pady=(8, 0))
 
+        # Priority badge (if high or low)
+        prio = t.get("priority", "medium")
+        if prio == "high":
+            tk.Label(card, text="🔴 高优先级",
+                     font=("Consolas", 8, "bold"), bg=C["card"], fg="#f87171").pack(anchor="w", pady=(4, 0))
+        elif prio == "low":
+            tk.Label(card, text="🟢 低优先级",
+                     font=("Consolas", 8), bg=C["card"], fg=C["muted"]).pack(anchor="w", pady=(4, 0))
+
+        # Deadline (if set)
+        dl = t.get("deadline", "")
+        if dl and status != "done":
+            from datetime import datetime as _dt
+            try:
+                dl_date = _dt.strptime(dl[:10], "%Y-%m-%d")
+                diff = (dl_date - _dt.now()).days
+                if diff < 0:
+                    dl_text, dl_fg = f"🚨 已过期 {abs(diff)} 天", "#f87171"
+                elif diff == 0:
+                    dl_text, dl_fg = "🔥 今天到期", "#f87171"
+                elif diff <= 3:
+                    dl_text, dl_fg = f"⚡ {diff} 天后到期", C["warn"]
+                else:
+                    dl_text, dl_fg = f"📅 截止 {dl[:10]}", C["muted"]
+            except ValueError:
+                dl_text, dl_fg = f"📅 {dl}", C["muted"]
+            tk.Label(card, text=dl_text,
+                     font=("Consolas", 8), bg=C["card"], fg=dl_fg).pack(anchor="w", pady=(4, 0))
+
         # Notes (if any)
         if t["notes"]:
             tk.Label(card, text=f"📝 {t['notes']}",
