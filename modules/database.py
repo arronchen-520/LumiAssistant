@@ -64,6 +64,17 @@ def init_db():
                 value TEXT NOT NULL
             );
 
+            -- To-Do list table
+            CREATE TABLE IF NOT EXISTS todos (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at  TEXT NOT NULL,
+                updated_at  TEXT NOT NULL,
+                project     TEXT,
+                task        TEXT NOT NULL,
+                status      TEXT DEFAULT 'pending',
+                notes       TEXT
+            );
+
             -- Keep FTS in sync: populate on insert
             CREATE TRIGGER IF NOT EXISTS entries_ai AFTER INSERT ON entries BEGIN
                 INSERT INTO entries_fts(rowid, raw_text, ai_reflection)
@@ -272,3 +283,97 @@ def update_reminder_by_keyword(keyword: str, new_time: str) -> int:
 def mark_reminder_done(rid: int):
     with _db() as conn:
         conn.execute("UPDATE reminders SET done = 1 WHERE id = ?", (rid,))
+
+
+# ── To-Do ─────────────────────────────────────────────────────────────────────
+
+def save_todo(task: str, project: str = None, notes: str = None) -> int:
+    now = datetime.now().isoformat()
+    with _db() as conn:
+        cur = conn.execute(
+            "INSERT INTO todos (created_at, updated_at, project, task, status, notes) VALUES (?,?,?,?,?,?)",
+            (now, now, project, task, "pending", notes),
+        )
+        return cur.lastrowid
+
+
+def get_todos(status: str = None, project: str = None, limit: int = 50) -> list[dict]:
+    with _db() as conn:
+        query = "SELECT id, created_at, updated_at, project, task, status, notes FROM todos"
+        conditions = []
+        params = []
+        if status:
+            conditions.append("status = ?")
+            params.append(status)
+        if project:
+            conditions.append("project LIKE ?")
+            params.append(f"%{project}%")
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += " ORDER BY CASE status WHEN 'in_progress' THEN 0 WHEN 'pending' THEN 1 WHEN 'done' THEN 2 END, updated_at DESC LIMIT ?"
+        params.append(limit)
+        rows = conn.execute(query, params).fetchall()
+    return [_todo_row(r) for r in rows]
+
+
+def update_todo_status(todo_id: int, status: str, notes: str = None) -> bool:
+    now = datetime.now().isoformat()
+    with _db() as conn:
+        if notes:
+            conn.execute("UPDATE todos SET status = ?, notes = ?, updated_at = ? WHERE id = ?",
+                         (status, notes, now, todo_id))
+        else:
+            conn.execute("UPDATE todos SET status = ?, updated_at = ? WHERE id = ?",
+                         (status, now, todo_id))
+        return conn.total_changes > 0
+
+
+def update_todo_by_keyword(keyword: str, status: str = None, notes: str = None, new_task: str = None) -> int:
+    now = datetime.now().isoformat()
+    with _db() as conn:
+        rows = conn.execute("SELECT id FROM todos WHERE task LIKE ? OR project LIKE ?",
+                            (f"%{keyword}%", f"%{keyword}%")).fetchall()
+        count = 0
+        for r in rows:
+            updates = ["updated_at = ?"]
+            params = [now]
+            if status:
+                updates.append("status = ?")
+                params.append(status)
+            if notes:
+                updates.append("notes = ?")
+                params.append(notes)
+            if new_task:
+                updates.append("task = ?")
+                params.append(new_task)
+            params.append(r["id"])
+            conn.execute(f"UPDATE todos SET {', '.join(updates)} WHERE id = ?", params)
+            count += 1
+        return count
+
+
+def delete_todo_by_keyword(keyword: str) -> int:
+    with _db() as conn:
+        cur = conn.execute("DELETE FROM todos WHERE task LIKE ? OR project LIKE ?",
+                           (f"%{keyword}%", f"%{keyword}%"))
+        return cur.rowcount
+
+
+def get_todo_summary() -> dict:
+    with _db() as conn:
+        rows = conn.execute(
+            "SELECT status, COUNT(*) as cnt FROM todos GROUP BY status"
+        ).fetchall()
+    return {r["status"]: r["cnt"] for r in rows}
+
+
+def _todo_row(r) -> dict:
+    return {
+        "id":         r["id"],
+        "created_at": r["created_at"][:16],
+        "updated_at": r["updated_at"][:16],
+        "project":    r["project"] or "",
+        "task":       r["task"],
+        "status":     r["status"],
+        "notes":      r["notes"] or "",
+    }

@@ -17,7 +17,7 @@ if not _GROQ_KEY or _GROQ_KEY.startswith("your_"):
         "    Get a free key at https://console.groq.com and add it to .env"
     )
 
-from modules.database           import init_db, save_entry, get_entries, get_upcoming_reminders, save_reminder
+from modules.database           import init_db, save_entry, get_entries, get_upcoming_reminders, save_reminder, get_todos
 from modules.voice              import VoiceRecorder
 from modules.ai_brain           import process_input, parse_reminder_time, chat_with_pet
 from modules.llm_client         import get_provider_info
@@ -72,7 +72,8 @@ def main():
             commands = result.get("command_list", [])
             from modules.database import (
                 delete_last_entry, delete_entry_by_date, update_entry_by_date,
-                delete_reminder_by_keyword, update_reminder_by_keyword
+                delete_reminder_by_keyword, update_reminder_by_keyword,
+                update_todo_by_keyword, delete_todo_by_keyword
             )
             messages = []
             for cmd in commands:
@@ -92,6 +93,19 @@ def main():
                 elif action == "update_reminder":
                     count = update_reminder_by_keyword(cmd.get("target_keyword"), cmd.get("new_time"))
                     messages.append(f"✅ 已更新提醒时间。" if count else "没有找到该提醒。")
+                elif action == "complete_todo":
+                    count = update_todo_by_keyword(cmd.get("target_keyword"), status="done")
+                    messages.append(f"✅ 已完成待办事项！" if count else "没有找到该待办。")
+                elif action == "update_todo":
+                    count = update_todo_by_keyword(
+                        cmd.get("target_keyword"),
+                        status=cmd.get("new_status"),
+                        notes=cmd.get("notes")
+                    )
+                    messages.append(f"✅ 已更新待办进度。" if count else "没有找到该待办。")
+                elif action == "delete_todo":
+                    count = delete_todo_by_keyword(cmd.get("target_keyword"))
+                    messages.append(f"🗑️ 已删除待办事项。" if count else "没有找到该待办。")
                 else:
                     messages.append(f"收到未知的命令。")
             
@@ -113,6 +127,40 @@ def main():
         # ── Chit-chat / Brainstorm ──
         # Do NOT save these transient interactions to the diary database
         if input_type in ("chit-chat", "brainstorm"):
+            return result
+
+        # ── To-Do ──
+        if input_type == "todo":
+            from modules.database import save_todo, update_todo_by_keyword, delete_todo_by_keyword
+            todo_actions = result.get("todo_actions", [])
+            messages = []
+            for ta in todo_actions:
+                action = ta.get("action")
+                if action == "add_todo":
+                    save_todo(
+                        task=ta.get("task", ""),
+                        project=ta.get("project"),
+                        notes=ta.get("notes"),
+                    )
+                    messages.append(f"📌 已添加待办：{ta.get('task', '')[:30]}")
+                elif action == "complete_todo":
+                    count = update_todo_by_keyword(ta.get("target_keyword", ""), status="done")
+                    messages.append("✅ 已标记为完成！" if count else "没有找到该待办。")
+                elif action == "update_todo":
+                    count = update_todo_by_keyword(
+                        ta.get("target_keyword", ""),
+                        status="in_progress",
+                        notes=ta.get("notes"),
+                        new_task=ta.get("task") if ta.get("task") != ta.get("target_keyword") else None,
+                    )
+                    messages.append("📝 已更新待办进度！" if count else "没有找到该待办。")
+                elif action == "delete_todo":
+                    count = delete_todo_by_keyword(ta.get("target_keyword", ""))
+                    messages.append("🗑️ 待办已删除。" if count else "没有找到该待办。")
+            
+            todo_msg = "\n".join(messages) if messages else "📝 已处理待办事项。"
+            reflection = result.get("reflection") or ""
+            result["reflection"] = f"{reflection}\n\n{todo_msg}".strip()
             return result
 
         # ── Diary / Query / Both ──
@@ -162,6 +210,7 @@ def main():
         on_chat=on_chat,
         get_entries=lambda: get_entries(limit=50),
         get_reminders=lambda: get_upcoming_reminders(limit=20),
+        get_todos=lambda: get_todos(limit=50),
     )
     pet.set_save_callback(on_save_entry)
 

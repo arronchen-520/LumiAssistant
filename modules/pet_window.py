@@ -318,12 +318,14 @@ class DesktopPet:
         on_chat: Callable,
         get_entries: Callable,
         get_reminders: Callable,
+        get_todos: Callable = None,
     ):
         self._on_record_start = on_record_start
         self._on_record_stop  = on_record_stop
         self._on_chat         = on_chat
         self._get_entries     = get_entries
         self._get_reminders   = get_reminders
+        self._get_todos        = get_todos or (lambda: [])
         self._save_callback   = None
 
         self._recording  = False
@@ -601,6 +603,7 @@ class DesktopPet:
         t1 = tk.Frame(nb, bg=C["bg"]); nb.add(t1, text="  📝 写日记  "); self._build_write_tab(t1)
         t2 = tk.Frame(nb, bg=C["bg"]); nb.add(t2, text="  📚 历史  ");   self._build_history_tab(t2)
         t3 = tk.Frame(nb, bg=C["bg"]); nb.add(t3, text="  ⏰ 提醒  ");   self._build_reminders_tab(t3)
+        t5 = tk.Frame(nb, bg=C["bg"]); nb.add(t5, text="  ✅ 待办  ");   self._build_todos_tab(t5)
         t4 = tk.Frame(nb, bg=C["bg"]); nb.add(t4, text="  💬 聊天  ");   self._build_chat_tab(t4)
 
     # ── Write tab ─────────────────────────────────────────────────────────────
@@ -767,6 +770,7 @@ class DesktopPet:
 
         self._refresh_history()
         self._refresh_reminders()
+        self._refresh_todos()
 
     def _set_reflection(self, text: str):
         self._reflection_box.config(state="normal")
@@ -906,6 +910,102 @@ class DesktopPet:
                      bg=C["card"], fg=C["text"],
                      wraplength=440, justify="left").pack(anchor="w", pady=(8, 0))
 
+    # ── To-Do tab ────────────────────────────────────────────────────────────────
+
+    def _build_todos_tab(self, parent):
+        btn_f = tk.Frame(parent, bg=C["bg"])
+        btn_f.pack(fill="x", padx=14, pady=(14, 4))
+
+        tk.Label(btn_f, text="TO-DO LIST", font=("Consolas", 10, "bold"), bg=C["bg"], fg=C["text"]).pack(side="left")
+        tk.Button(btn_f, text="↻ SYNC", font=("Consolas", 8),
+                  bg=C["card2"], fg=C["muted"],
+                  relief="flat", padx=12, bd=0, activebackground=C["card"], activeforeground=C["text"],
+                  command=self._refresh_todos).pack(side="right")
+
+        self._todo_canvas = tk.Canvas(parent, bg=C["bg"], highlightthickness=0)
+        sb = ttk.Scrollbar(parent, orient="vertical", command=self._todo_canvas.yview)
+        self._todo_canvas.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        self._todo_canvas.pack(fill="both", expand=True, padx=(14, 0))
+
+        self._todo_inner = tk.Frame(self._todo_canvas, bg=C["bg"])
+        self._todo_canvas.create_window((0, 0), window=self._todo_inner, anchor="nw")
+        self._todo_inner.bind("<Configure>", lambda e: self._todo_canvas.configure(
+            scrollregion=self._todo_canvas.bbox("all")))
+
+    def _refresh_todos(self):
+        for w in self._todo_inner.winfo_children():
+            w.destroy()
+
+        todos = self._get_todos()
+        if not todos:
+            tk.Label(self._todo_inner, text="\n[ NO ACTIVE TO-DOS ]✦\n开始记录待办吧！",
+                     font=("Consolas", 9), bg=C["bg"], fg=C["muted"]).pack(pady=30)
+            return
+
+        for t in todos:
+            self._make_todo_card(self._todo_inner, t)
+
+    def _make_todo_card(self, parent, t: dict):
+        status = t["status"]
+        # Color-coded left border by status
+        border_color = {
+            "in_progress": C["accent"],
+            "pending":     C["warn"],
+            "done":        C["success"],
+        }.get(status, C["muted"])
+
+        card_outer = tk.Frame(parent, bg=border_color, pady=1, padx=1)
+        card_outer.pack(fill="x", pady=(0, 10))
+        card = tk.Frame(card_outer, bg=C["card"], pady=12, padx=16)
+        card.pack(fill="both", expand=True)
+
+        # Header row: project + status badge
+        hrow = tk.Frame(card, bg=C["card"])
+        hrow.pack(fill="x")
+
+        if t["project"]:
+            tk.Label(hrow, text=f"📁 {t['project']}",
+                     font=("Consolas", 8, "bold"), bg=C["card"], fg=C["accent2"]).pack(side="left")
+
+        # Status badge
+        status_labels = {
+            "pending":     ("⏳ 待开始",   C["warn"]),
+            "in_progress": ("🔧 进行中",  C["accent"]),
+            "done":        ("✅ 已完成",   C["success"]),
+        }
+        label_text, label_color = status_labels.get(status, (status, C["muted"]))
+        tk.Label(hrow, text=label_text,
+                 font=("Consolas", 8, "bold"), bg=C["card"], fg=label_color).pack(side="right")
+
+        # Task description
+        task_fg = C["muted"] if status == "done" else C["text"]
+        tk.Label(card, text=t["task"], font=FONT,
+                 bg=C["card"], fg=task_fg,
+                 wraplength=440, justify="left").pack(anchor="w", pady=(8, 0))
+
+        # Notes (if any)
+        if t["notes"]:
+            tk.Label(card, text=f"📝 {t['notes']}",
+                     font=("Segoe UI Variable Display", 8), bg=C["card"], fg=C["glow"],
+                     wraplength=440, justify="left").pack(anchor="w", pady=(4, 0))
+
+        # Updated time
+        tk.Label(card, text=f"更新于 {t['updated_at']}",
+                 font=("Consolas", 7), bg=C["card"], fg=C["muted"]).pack(anchor="e", pady=(6, 0))
+
+        # Action button: mark as done (only for non-done items)
+        if status != "done":
+            def mark_done(todo_id=t["id"]):
+                from modules.database import update_todo_status
+                update_todo_status(todo_id, "done")
+                self._refresh_todos()
+
+            tk.Button(card, text="  ✓ 完成  ",
+                      font=("Consolas", 8), bg=C["success"], fg=C["bg"],
+                      relief="flat", padx=8, pady=2, bd=0, cursor="hand2",
+                      command=mark_done).pack(anchor="e", pady=(6, 0))
+
     # ── Chat tab ──────────────────────────────────────────────────────────────
 
     def _build_chat_tab(self, parent):
@@ -994,6 +1094,7 @@ class DesktopPet:
             self.panel.lift()
             self._refresh_history()
             self._refresh_reminders()
+            self._refresh_todos()
 
     def _hide_panel(self):
         self.panel.withdraw()
