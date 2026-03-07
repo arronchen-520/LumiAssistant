@@ -1061,7 +1061,7 @@
         // ═══════════════════════════════════════════════════════════════
         // DATA LAYER
         // ═══════════════════════════════════════════════════════════════
-        const KEYS = { diaries: 'lumi_diaries', reminders: 'lumi_reminders', todos: 'lumi_todos', persona: 'lumi_persona', apiKey: 'GROQ_API_KEY', chatCtx: 'lumi_chat_ctx', historyLimit: 'lumi_history_limit' };
+        const KEYS = { diaries: 'lumi_diaries', todos: 'lumi_todos', persona: 'lumi_persona', apiKey: 'GROQ_API_KEY', chatCtx: 'lumi_chat_ctx', historyLimit: 'lumi_history_limit' };
         function loadArr(k) { try { return JSON.parse(localStorage.getItem(k) || '[]') } catch { return [] } }
         function saveArr(k, d) { localStorage.setItem(k, JSON.stringify(d)) }
         function loadObj(k) { try { return JSON.parse(localStorage.getItem(k) || '{}') } catch { return {} } }
@@ -1104,15 +1104,46 @@
         function getGreeting() {
             const h = new Date().getHours(), p = loadObj(KEYS.persona), name = p.user_name ? `，${p.user_name}` : '';
             const todos = loadArr(KEYS.todos);
-            const overdue = todos.filter(t => t.deadline && new Date(t.deadline) < new Date()).length;
+            const now = new Date();
+
+            const overdue = [];
+            const upcoming = [];
+
+            todos.forEach(t => {
+                if (t.deadline) {
+                    const dl = new Date(t.deadline);
+                    if (!isNaN(dl.getTime())) {
+                        const diffH = (dl - now) / 36e5;
+                        if (diffH < 0) overdue.push(t);
+                        else if (diffH <= 24) upcoming.push(t); // Due within 24 hours
+                    }
+                }
+            });
+
             let g;
             if (h < 6) g = `夜深了${name}，还没休息吗？我随时在这里陪你 🌙`;
             else if (h < 12) g = `早安${name}！☀️ 新的一天，有什么计划？`;
             else if (h < 18) g = `下午好${name}，今天进展怎么样？`;
             else g = `晚上好${name}，辛苦了一天 🌟`;
-            if (overdue > 0) g += `\n\n⚠️ 你有 **${overdue}** 个待办已过期！`;
-            else if (todos.length > 0) g += `\n\n你有 **${todos.length}** 个待办 📋`;
-            if (p.current_goal) g += `\n记得你的目标：*${p.current_goal}*，加油！💪`;
+
+            if (p.current_goal) g += `\n\n记得你的目标：*${p.current_goal}*，加油！💪`;
+
+            let hasAlerts = false;
+
+            if (overdue.length > 0) {
+                if (!hasAlerts) { g += '\n\n**近期事项盘点**：'; hasAlerts = true; }
+                g += `\n🚨 **${overdue.length} 个待办已过期**，比如: *${overdue.slice(0, 2).map(t => t.task).join('、')}*`;
+            }
+
+            if (upcoming.length > 0) {
+                if (!hasAlerts) { g += '\n\n**近期事项盘点**：'; hasAlerts = true; }
+                g += `\n🔥 **${upcoming.length} 个待办急需处理** (24小时内)，比如: *${upcoming.slice(0, 2).map(t => t.task).join('、')}*`;
+            }
+
+            if (!hasAlerts && todos.length > 0) {
+                g += `\n\n你当前共有 **${todos.length}** 个待办 📋，时间都还很充裕。`;
+            }
+
             return g;
         }
 
@@ -1247,21 +1278,11 @@
                     saveArr(KEYS.diaries, d); sp.push('�已记录想法');
                 }
 
-                // Reminders
-                if (result.reminders_to_add && result.reminders_to_add.length > 0) {
-                    const r = loadArr(KEYS.reminders);
-                    result.reminders_to_add.forEach(rem => r.push({ id: Date.now() + Math.random(), time: rem.time, message: rem.message, done: false }));
-                    saveArr(KEYS.reminders, r); sp.push(`⏰ ${result.reminders_to_add.length} 个提醒`);
-                }
-
                 // Commands
                 if (result.commands && result.commands.length > 0) {
-                    let r = loadArr(KEYS.reminders);
                     result.commands.forEach(cmd => {
                         if (cmd.action === 'delete_last_diary') { const d = loadArr(KEYS.diaries); if (d.length) { d.shift(); saveArr(KEYS.diaries, d); sp.push('🗑 删了日记') } }
-                        else if (cmd.action === 'delete_reminder' && cmd.target_keyword) { const kw = cmd.target_keyword.toLowerCase(); r = r.filter(x => !x.message.toLowerCase().includes(kw)); sp.push('🗑 删了提醒') }
                     });
-                    saveArr(KEYS.reminders, r);
                 }
 
                 // Persona (explicit + auto-extracted)
@@ -1313,15 +1334,11 @@ ${diaries || 'None.'}
 USER'S TO-DOS:
 ${todoCtx || 'None.'}
 
-USER'S REMINDERS:
-${rems || 'None.'}
-
 Return ONLY valid JSON:
 {
   "input_type": "idea"|"query"|"both"|"chit-chat"|"brainstorm"|"command"|"persona_update"|"todo",
   "reflection": "warm reply in user's language, use markdown formatting",
   "query_answer": "answer from memory/todos/schedule (if query/both, else null)",
-  "reminders_to_add": [{"message":"...","time":"YYYY-MM-DDTHH:mm:ss"}],
   "todo_actions": [
     {
       "action": "add_todo"|"update_todo"|"complete_todo"|"delete_todo",
@@ -1330,11 +1347,11 @@ Return ONLY valid JSON:
       "notes": "progress notes or null",
       "target_keyword": "keyword to match existing todo",
       "priority": "high"|"medium"|"low",
-      "deadline": "YYYY-MM-DD or null",
+      "deadline": "YYYY-MM-DDTHH:mm:ss or null",
       "subtasks": ["subtask 1","subtask 2"]
     }
   ],
-  "commands": [{"action":"delete_last_diary"|"delete_reminder","target_keyword":"..."}],
+  "commands": [{"action":"delete_last_diary","target_keyword":"..."}],
   "persona_updates": [{"key":"...","value":"..."}]
 }
 
@@ -1346,7 +1363,7 @@ RULES:
    - When user says "X做完了,接下来是Y": delete X + add Y
    - For big tasks, add subtasks array to break them down
    - Infer priority from urgency ("紧急"→high, "有空"→low). If unstated, assign relative priority (high/medium/low) by judging its nature compared to existing TO-DOS.
-   - Infer deadline from time ("周五前"→YYYY-MM-DD)
+   - Infer deadline from time. If user specifies a time ("下午5点"), use YYYY-MM-DDTHH:mm:ss. If user only specifies a day ("今天", "周五前"), default the time to 23:59:59 of that day.
    - "update_todo" can add new subtasks or change notes/deadline/priority
 4. AUTO PERSONA: Whenever user reveals personal info naturally, add persona_updates:
    - Name, job, hobbies, patterns, preferences, goals
@@ -1370,6 +1387,11 @@ RULES:
         // ═══════════════════════════════════════════════════════════════
         // VOICE
         // ═══════════════════════════════════════════════════════════════
+        let vadAudioContext, vadMediaStreamSource, vadAnalyser, vadDataArray;
+        let vadMonitorInterval, vadSilenceStart = 0;
+        const VAD_SILENCE_THRESHOLD_MS = 3000; // 3 seconds of silence
+        const VAD_VOLUME_THRESHOLD = 5; // out of 255
+
         async function toggleRecording() {
             const apiKey = localStorage.getItem(KEYS.apiKey);
             if (!apiKey) { addLumiMsg('请先在 **设置** 里填写 API Key 🔑'); return }
@@ -1380,6 +1402,7 @@ RULES:
                     mediaRecorder = new MediaRecorder(stream); audioChunks = [];
                     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data) };
                     mediaRecorder.onstop = async () => {
+                        stopVAD();
                         setStatus('转写中...');
                         try {
                             const blob = new Blob(audioChunks, { type: 'audio/webm' }), fd = new FormData();
@@ -1393,10 +1416,60 @@ RULES:
                         } catch (err) { setStatus('转写失败', true) }
                     };
                     mediaRecorder.start(); isRecording = true; btn.classList.add('recording'); btn.textContent = '⏹'; setStatus('🔴 聆听中...');
+                    startVAD(stream);
                 } catch { addLumiMsg('无法访问麦克风 😅') }
             } else {
-                mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t => t.stop());
-                isRecording = false; btn.classList.remove('recording'); btn.textContent = '🎙';
+                stopRecording();
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(t => t.stop());
+            }
+            isRecording = false;
+            const btn = document.getElementById('recordBtn');
+            btn.classList.remove('recording');
+            btn.textContent = '🎙';
+        }
+
+        function startVAD(stream) {
+            try {
+                vadAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+                vadMediaStreamSource = vadAudioContext.createMediaStreamSource(stream);
+                vadAnalyser = vadAudioContext.createAnalyser();
+                vadAnalyser.fftSize = 256;
+                vadMediaStreamSource.connect(vadAnalyser);
+
+                vadDataArray = new Uint8Array(vadAnalyser.frequencyBinCount);
+                vadSilenceStart = Date.now(); // Initialize to now
+
+                vadMonitorInterval = setInterval(() => {
+                    vadAnalyser.getByteFrequencyData(vadDataArray);
+                    // Calculate rough volume (average of frequencies)
+                    let sum = 0;
+                    for (let i = 0; i < vadDataArray.length; i++) { sum += vadDataArray[i]; }
+                    const avgVolume = sum / vadDataArray.length;
+
+                    if (avgVolume > VAD_VOLUME_THRESHOLD) {
+                        vadSilenceStart = Date.now(); // Reset silence timer if sound is detected
+                    } else {
+                        // If silent for longer than threshold, trigger stop
+                        if (Date.now() - vadSilenceStart > VAD_SILENCE_THRESHOLD_MS) {
+                            stopRecording();
+                        }
+                    }
+                }, 100);
+            } catch (e) {
+                console.error("VAD init failed", e);
+            }
+        }
+
+        function stopVAD() {
+            if (vadMonitorInterval) clearInterval(vadMonitorInterval);
+            if (vadAudioContext && vadAudioContext.state !== 'closed') {
+                vadAudioContext.close().catch(e => console.error(e));
             }
         }
 
@@ -1462,16 +1535,47 @@ RULES:
         }
 
         function todoCardHTML(t) {
-            const isOverdue = t.deadline && new Date(t.deadline) < new Date();
+            const now = new Date();
+            const deadlineDate = t.deadline ? new Date(t.deadline) : null;
+            const isValidDate = deadlineDate && !isNaN(deadlineDate.getTime());
+            const isOverdue = isValidDate && deadlineDate < now;
             const isHigh = t.priority === 'high';
             let deadlineHTML = '';
+
             if (t.deadline) {
-                const diff = Math.ceil((new Date(t.deadline) - new Date()) / (864e5));
-                let cls = 'normal', txt = `📅 ${t.deadline}`;
-                if (diff < 0) { cls = 'urgent'; txt = `🚨 已过期 ${Math.abs(diff)} 天` }
-                else if (diff === 0) { cls = 'urgent'; txt = '🔥 今天到期' }
-                else if (diff <= 3) { cls = 'soon'; txt = `⚡ ${diff} 天后到期` }
-                deadlineHTML = `<div class="todo-deadline ${cls}">${txt}</div>`;
+                if (isValidDate) {
+                    const diffMs = deadlineDate - now;
+                    const diffDays = Math.ceil(diffMs / 864e5);
+
+                    let cls = 'normal', txt = '';
+                    const formattedDeadline = deadlineDate.toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+                    if (isOverdue) {
+                        cls = 'urgent';
+                        const hours = Math.floor(Math.abs(diffMs) / 36e5);
+                        if (hours < 1) txt = `🚨 刚刚过期`;
+                        else if (hours <= 24) txt = `🚨 已过期 ${hours} 小时`;
+                        else txt = `🚨 已过期 ${Math.floor(Math.abs(diffMs) / 864e5)} 天`;
+                    } else {
+                        const hours = Math.floor(diffMs / 36e5);
+                        if (hours < 1) {
+                            cls = 'urgent';
+                            txt = `🔥 马上到期`;
+                        } else if (hours <= 24) {
+                            cls = 'urgent';
+                            txt = `🔥 剩 ${hours} 小时`;
+                        } else if (diffDays <= 3) {
+                            cls = 'soon';
+                            txt = `⚡ ${diffDays} 天后`;
+                        } else {
+                            txt = `📅 ${formattedDeadline}`;
+                        }
+                    }
+                    if (txt.startsWith('🔥') || txt.startsWith('⚡')) txt += ` (${formattedDeadline})`;
+                    deadlineHTML = `<div class="todo-deadline ${cls}">${txt}</div>`;
+                } else {
+                    deadlineHTML = `<div class="todo-deadline normal">📅 ${esc(t.deadline)}</div>`;
+                }
             }
             const prioHTML = t.priority && t.priority !== 'medium' ? `<span class="todo-priority ${t.priority}">${t.priority === 'high' ? '🔴 紧急' : '🟢 低'}</span>` : '';
 
