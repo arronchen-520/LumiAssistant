@@ -1193,6 +1193,7 @@
             // Adjust content padding to account for bottom bar height
             const bottomBar = document.querySelector('.bottom-bar');
             document.querySelector('.content').style.paddingBottom = (bottomBar.offsetHeight + 8) + 'px';
+            if (id === 'chat') scrollChat();
             if (id === 'todo') renderTodos();
             if (id === 'history') renderHistory();
             if (id === 'settings') typeof renderPersona === 'function' && renderPersona();
