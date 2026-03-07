@@ -1137,12 +1137,12 @@
 
             if (overdue.length > 0) {
                 if (!hasAlerts) { g += '\n\n**近期事项盘点**：'; hasAlerts = true; }
-                g += `\n🚨 **${overdue.length} 个待办已过期**，比如: *${overdue.slice(0, 2).map(t => t.task).join('、')}*`;
+                g += `\n🚨 **${overdue.length} 个待办已过期**: *${overdue.map(t => t.task).join('、')}*`;
             }
 
             if (upcoming.length > 0) {
                 if (!hasAlerts) { g += '\n\n**近期事项盘点**：'; hasAlerts = true; }
-                g += `\n🔥 **${upcoming.length} 个待办急需处理** (24小时内)，比如: *${upcoming.slice(0, 2).map(t => t.task).join('、')}*`;
+                g += `\n🔥 **${upcoming.length} 个待办急需处理** (24小时内): *${upcoming.map(t => t.task).join('、')}*`;
             }
 
             return g;
