@@ -1088,7 +1088,12 @@
             // Restore chat UI
             const saved = loadArr('lumi_ui_msgs');
             if (saved.length > 0) saved.forEach(m => { if (m.t === 'l') addLumiMsg(m.v, false); else addUserMsg(m.v, false) });
-            else addLumiMsg(getGreeting());
+
+            const newGreeting = getGreeting();
+            if (saved.length === 0 || saved[saved.length - 1].v !== newGreeting) {
+                addLumiMsg(newGreeting, true);
+            }
+
             renderTodos(); renderHistory(); updateBadge();
             // Set initial content bottom padding to match bottom bar
             setTimeout(() => {
@@ -1138,10 +1143,6 @@
             if (upcoming.length > 0) {
                 if (!hasAlerts) { g += '\n\n**近期事项盘点**：'; hasAlerts = true; }
                 g += `\n🔥 **${upcoming.length} 个待办急需处理** (24小时内)，比如: *${upcoming.slice(0, 2).map(t => t.task).join('、')}*`;
-            }
-
-            if (!hasAlerts && todos.length > 0) {
-                g += `\n\n你当前共有 **${todos.length}** 个待办 📋，时间都还很充裕。`;
             }
 
             return g;
@@ -1390,7 +1391,7 @@ RULES:
         // ═══════════════════════════════════════════════════════════════
         let vadAudioContext, vadMediaStreamSource, vadAnalyser, vadDataArray;
         let vadMonitorInterval, vadSilenceStart = 0;
-        const VAD_SILENCE_THRESHOLD_MS = 3000; // 3 seconds of silence
+        const VAD_SILENCE_THRESHOLD_MS = 2000; // 2 seconds of silence
         const VAD_VOLUME_THRESHOLD = 5; // out of 255
 
         async function toggleRecording() {
