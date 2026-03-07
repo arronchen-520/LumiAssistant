@@ -3,8 +3,7 @@ reminder_scheduler.py - Background thread polling for due reminders
 """
 import threading
 import time
-from modules.database import get_pending_reminders, mark_reminder_done
-
+from modules.database import get_due_todos
 
 class ReminderScheduler:
     def __init__(self, on_reminder_callback):
@@ -24,8 +23,8 @@ class ReminderScheduler:
     def _loop(self):
         while self._running:
             try:
-                # get_pending_reminders returns (id, remind_at, message)
-                for r in get_pending_reminders():
+                # get_due_todos returns (id, deadline, task)
+                for r in get_due_todos():
                     rid = r[0]
                     if rid not in self._notified_ids:
                         self._notified_ids.add(rid)

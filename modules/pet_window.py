@@ -317,15 +317,13 @@ class DesktopPet:
         on_record_stop: Callable,
         on_chat: Callable,
         get_entries: Callable,
-        get_reminders: Callable,
         get_todos: Callable = None,
     ):
         self._on_record_start = on_record_start
         self._on_record_stop  = on_record_stop
         self._on_chat         = on_chat
         self._get_entries     = get_entries
-        self._get_reminders   = get_reminders
-        self._get_todos        = get_todos or (lambda: [])
+        self._get_todos       = get_todos or (lambda: [])
         self._save_callback   = None
 
         self._recording  = False
@@ -501,14 +499,26 @@ class DesktopPet:
             self._recording = True
             self.sprite.set_state("talking")
             self.show_bubble("🎙️ 录音中...", duration=60)
-            self._on_record_start()
+            self._on_record_start(self._auto_stop_record)
         else:
+            self._do_stop_record()
+
+    def _auto_stop_record(self):
+        if self._recording:
             self._recording = False
-            self.show_bubble("⏳ 转写中...", duration=10)
-            def do_transcribe():
-                text = self._on_record_stop()
-                self.root.after(0, lambda: self._on_transcript_done(text))
-            threading.Thread(target=do_transcribe, daemon=True).start()
+            self.root.after(0, self._exec_stop)
+
+    def _do_stop_record(self):
+        if self._recording:
+            self._recording = False
+            self._exec_stop()
+
+    def _exec_stop(self):
+        self.show_bubble("⏳ 转写中...", duration=10)
+        def do_transcribe():
+            text = self._on_record_stop()
+            self.root.after(0, lambda: self._on_transcript_done(text))
+        threading.Thread(target=do_transcribe, daemon=True).start()
 
     def _on_transcript_done(self, text: str):
         if text:
@@ -532,10 +542,10 @@ class DesktopPet:
         popup.attributes("-topmost", True)
 
         def mark_done():
-            from modules.database import mark_reminder_done
-            mark_reminder_done(rid)
+            from modules.database import update_todo_status
+            update_todo_status(rid, "done")
             popup.destroy()
-            self._refresh_reminders()
+            self._refresh_todos()
 
         tk.Label(popup, text="⏰  提醒时间到啦！",
                  font=FONT_LG, bg=C["bg"], fg=C["accent"]).pack(pady=(20, 8))
@@ -600,11 +610,10 @@ class DesktopPet:
         nb.pack(fill="both", expand=True, padx=0, pady=0)
 
         # Build tabs
+        t4 = tk.Frame(nb, bg=C["bg"]); nb.add(t4, text="  💬 聊天  ");   self._build_chat_tab(t4)
         t1 = tk.Frame(nb, bg=C["bg"]); nb.add(t1, text="  📝 写日记  "); self._build_write_tab(t1)
         t2 = tk.Frame(nb, bg=C["bg"]); nb.add(t2, text="  📚 历史  ");   self._build_history_tab(t2)
-        t3 = tk.Frame(nb, bg=C["bg"]); nb.add(t3, text="  ⏰ 提醒  ");   self._build_reminders_tab(t3)
         t5 = tk.Frame(nb, bg=C["bg"]); nb.add(t5, text="  ✅ 待办  ");   self._build_todos_tab(t5)
-        t4 = tk.Frame(nb, bg=C["bg"]); nb.add(t4, text="  💬 聊天  ");   self._build_chat_tab(t4)
 
     # ── Write tab ─────────────────────────────────────────────────────────────
 
@@ -702,18 +711,30 @@ class DesktopPet:
             self._rec_btn.config(text="⏹  停止录音", bg=C["error"])
             self._rec_status.config(text="🔴 录音中...", fg=C["error"])
             self.sprite.set_state("talking")
-            self._on_record_start()
+            self._on_record_start(self._auto_stop_record_panel)
         else:
-            self._recording = False
-            self._rec_btn.config(text="🎙️  开始录音", bg=C["accent"])
-            self._rec_status.config(text="⏳ 正在转写...", fg=C["warn"])
-            self.panel.update()
-            self.sprite.set_state("idle")
+            self._do_stop_record_panel()
 
-            def do():
-                text = self._on_record_stop()
-                self.root.after(0, lambda: self._on_panel_transcript(text))
-            threading.Thread(target=do, daemon=True).start()
+    def _auto_stop_record_panel(self):
+        if self._recording:
+            self._recording = False
+            self.root.after(0, self._exec_stop_panel)
+
+    def _do_stop_record_panel(self):
+        if self._recording:
+            self._recording = False
+            self._exec_stop_panel()
+
+    def _exec_stop_panel(self):
+        self._rec_btn.config(text="🎙️  开始录音", bg=C["accent"])
+        self._rec_status.config(text="⏳ 正在转写...", fg=C["warn"])
+        self.panel.update()
+        self.sprite.set_state("idle")
+
+        def do():
+            text = self._on_record_stop()
+            self.root.after(0, lambda: self._on_panel_transcript(text))
+        threading.Thread(target=do, daemon=True).start()
 
     def _on_panel_transcript(self, text: str):
         self._rec_status.config(text="✅ 转写完成", fg=C["success"])
@@ -769,7 +790,6 @@ class DesktopPet:
             self.show_bubble(preview + "...", duration=5)
 
         self._refresh_history()
-        self._refresh_reminders()
         self._refresh_todos()
 
     def _set_reflection(self, text: str):
@@ -865,50 +885,7 @@ class DesktopPet:
                      font=("Segoe UI Variable Display", 8), bg=C["card"], fg=C["glow"],
                      wraplength=440, justify="left").pack(anchor="w")
 
-    # ── Reminders tab ─────────────────────────────────────────────────────────
 
-    def _build_reminders_tab(self, parent):
-        btn_f = tk.Frame(parent, bg=C["bg"])
-        btn_f.pack(fill="x", padx=14, pady=(14, 4))
-
-        tk.Label(btn_f, text="PENDING ALERTS", font=("Consolas", 10, "bold"), bg=C["bg"], fg=C["text"]).pack(side="left")
-        tk.Button(btn_f, text="↻ SYNC", font=("Consolas", 8),
-                  bg=C["card2"], fg=C["muted"],
-                  relief="flat", padx=12, bd=0, activebackground=C["card"], activeforeground=C["text"],
-                  command=self._refresh_reminders).pack(side="right")
-
-        self._rem_canvas = tk.Canvas(parent, bg=C["bg"], highlightthickness=0)
-        sb = ttk.Scrollbar(parent, orient="vertical", command=self._rem_canvas.yview)
-        self._rem_canvas.configure(yscrollcommand=sb.set)
-        sb.pack(side="right", fill="y")
-        self._rem_canvas.pack(fill="both", expand=True, padx=(14, 0))
-
-        self._rem_inner = tk.Frame(self._rem_canvas, bg=C["bg"])
-        self._rem_canvas.create_window((0, 0), window=self._rem_inner, anchor="nw")
-        self._rem_inner.bind("<Configure>", lambda e: self._rem_canvas.configure(
-            scrollregion=self._rem_canvas.bbox("all")))
-
-    def _refresh_reminders(self):
-        for w in self._rem_inner.winfo_children():
-            w.destroy()
-
-        reminders = self._get_reminders()
-        if not reminders:
-            tk.Label(self._rem_inner, text="\n[ NO ACTIVE ALERTS ]✦",
-                     font=("Consolas", 9), bg=C["bg"], fg=C["muted"]).pack(pady=30)
-            return
-
-        for r in reminders:
-            card_outer = tk.Frame(self._rem_inner, bg=C["warn"], pady=1, padx=0)
-            card_outer.pack(fill="x", pady=(0, 10))
-            card = tk.Frame(card_outer, bg=C["card"], pady=12, padx=16)
-            card.pack(fill="both", expand=True)
-
-            tk.Label(card, text=f"T-{r['time']}",
-                     font=("Consolas", 8, "bold"), bg=C["card"], fg=C["warn"]).pack(anchor="w")
-            tk.Label(card, text=r["message"], font=FONT,
-                     bg=C["card"], fg=C["text"],
-                     wraplength=440, justify="left").pack(anchor="w", pady=(8, 0))
 
     # ── To-Do tab ────────────────────────────────────────────────────────────────
 
@@ -1081,7 +1058,40 @@ class DesktopPet:
                  font=("Consolas", 8), bg=C["bg"], fg=C["muted"],
                  wraplength=480).pack(padx=14, pady=(0, 8))
 
-        self._append_chat("LUMI", "System online. Ready to sync.")
+        # Dynamic Greeting based on Todos
+        def _get_greeting():
+            base_msgs = ["Lumi is here✨", "System online.", "Ready when you are."]
+            msg = random.choice(base_msgs)
+            try:
+                todos = self._get_todos()
+                now = datetime.now()
+                overdue = 0
+                upcoming = 0
+                for t in todos:
+                    if t.get("status") == "done": continue
+                    dl_str = t.get("deadline")
+                    if dl_str:
+                        # Extract YYYY-MM-DD
+                        dl_date = datetime.strptime(dl_str[:10], "%Y-%m-%d")
+                        diff = (dl_date - now).days
+                        if diff < 0:
+                            overdue += 1
+                        elif diff == 0:
+                            upcoming += 1
+                
+                parts = []
+                if overdue > 0:
+                    parts.append(f"⚠️ {overdue} 项已过期")
+                if upcoming > 0:
+                    parts.append(f"⏰ {upcoming} 项今天到期")
+                
+                if parts:
+                    return f"{msg} 注意：{'，'.join(parts)}！"
+                return msg
+            except Exception as e:
+                return msg
+
+        self._append_chat("LUMI", _get_greeting())
 
     def _send_chat(self):
         self._reset_idle()
@@ -1122,7 +1132,6 @@ class DesktopPet:
             self.panel.deiconify()
             self.panel.lift()
             self._refresh_history()
-            self._refresh_reminders()
             self._refresh_todos()
 
     def _hide_panel(self):

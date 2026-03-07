@@ -29,18 +29,18 @@ class VoiceRecorder:
         self._frames: list = []
         self._thread: threading.Thread | None = None
 
-    def start(self):
+    def start(self, auto_stop_callback=None):
         """Begin recording from the default microphone."""
         self._frames    = []
         self._recording = True
-        self._thread    = threading.Thread(target=self._record_loop, daemon=True)
+        self._thread    = threading.Thread(target=self._record_loop, args=(auto_stop_callback,), daemon=True)
         self._thread.start()
 
     def stop(self) -> bytes:
         """Stop recording and return raw WAV bytes. Returns b'' if nothing recorded."""
         self._recording = False
         if self._thread:
-            self._thread.join(timeout=3)
+            self._thread.join(timeout=3.0)
         if not self._frames:
             return b""
         audio = np.concatenate(self._frames, axis=0)
@@ -49,11 +49,28 @@ class VoiceRecorder:
         buf.seek(0)
         return buf.read()
 
-    def _record_loop(self):
+    def _record_loop(self, auto_stop_callback):
+        import time
+        VAD_SILENCE_THRESHOLD = 2.5
+        VAD_VOLUME_THRESHOLD = 500  # Adjust according to mic sensitivity, 500 is very quiet for int16
+        silence_start = time.time()
+
         with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype="int16") as stream:
             while self._recording:
                 data, _ = stream.read(1024)
                 self._frames.append(data.copy())
+                
+                if len(data) > 0:
+                    avg_volume = np.abs(data).mean()
+                    if avg_volume > VAD_VOLUME_THRESHOLD:
+                        silence_start = time.time()
+                    else:
+                        if time.time() - silence_start > VAD_SILENCE_THRESHOLD:
+                            if self._recording:
+                                self._recording = False
+                                if auto_stop_callback:
+                                    auto_stop_callback()
+                                break
 
     def transcribe(self, wav_bytes: bytes, language: str = "zh") -> str:
         """

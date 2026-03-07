@@ -30,15 +30,14 @@ The user has sent text (typed or transcribed from voice). Your job is to:
   "input_type": "diary" | "query" | "both" | "chit-chat" | "brainstorm" | "command" | "persona_update" | "todo",
   "diary_date": "YYYY-MM-DD or null (ONLY if the user explicitly specifies a past/future date for THIS diary entry, e.g. 'yesterday')",
   "reflection": "2-3 warm sentences (for diary, both, chit-chat, or todo, else null)",
-  "reminders":  [{{"message": "...", "time_description": "exact phrase"}}],
   "summary_tags": ["tag1", "tag2"],
   "memory_query": "the question extracted for memory retrieval (if query or both, else null)",
   "brainstorm_topic": "the extracted topic to brainstorm/advise on (if brainstorm, else null)",
   "command_list": [
      {{
-         "action": "delete_last_entry" | "delete_entry_by_date" | "update_entry_by_date" | "delete_reminder" | "update_reminder" | "complete_todo" | "update_todo" | "delete_todo",
+         "action": "delete_last_entry" | "delete_entry_by_date" | "update_entry_by_date" | "complete_todo" | "update_todo" | "delete_todo",
          "target_date": "YYYY-MM-DD or null",
-         "target_keyword": "keyword to find the reminder/todo or null",
+         "target_keyword": "keyword to find the todo or null",
          "new_text": "new text content or null",
          "new_time": "YYYY-MM-DD HH:MM or null",
          "new_status": "pending | in_progress | done (for todo commands, else null)",
@@ -65,7 +64,7 @@ Classification rules:
 - "both"    : diary content AND asking about the past
 - "chit-chat": casual greetings, casual praise without substance (e.g. "Good morning", "You are cute")
 - "brainstorm": asking for detailed advice, planning, or brainstorming (e.g. "I'm nervous about my interview tomorrow, any tips?")
-- "command" : app-level commands like "Delete my last diary entry" or "Delete yesterday's diary" or "Change dentist reminder to 3 PM" or "Delete that todo" or "Mark TODO as complete"
+- "command" : app-level commands like "Delete my last diary entry" or "Delete yesterday's diary" or "Delete that todo" or "Mark TODO as complete"
 - "persona_update": user mentioning long-term preferences, name, or goals for you to remember (e.g. "Call me Alex", "I am trying to diet, supervise me")
 - "todo": user mentions adding a to-do item, reporting project progress, or updating task status (e.g. "I need to finish writing chapter 3", "The report is done, next I need to do the presentation", "项目A做到第二步了，下一步是测试")
 
@@ -130,7 +129,6 @@ def process_input(text: str, context_entries: list = None) -> dict:
         result = {
             "input_type":   "diary",
             "reflection":   raw[:300] or "谢谢你今天的分享 ✨",
-            "reminders":    [],
             "summary_tags": [],
             "memory_query": None,
         }
@@ -164,36 +162,6 @@ def process_input(text: str, context_entries: list = None) -> dict:
     return result
 
 
-# ── 时间解析 (Time Parsing: dateparser-first, LLM fallback) ──────────────────
-
-def parse_reminder_time(description: str) -> datetime | None:
-    # 1. dateparser 快速解析
-    try:
-        import dateparser
-        dt = dateparser.parse(
-            description,
-            settings={"PREFER_DATES_FROM": "future", "RETURN_AS_TIMEZONE_AWARE": False},
-        )
-        if dt:
-            return dt
-    except ImportError:
-        pass
-
-    # 2. LLM 兜底
-    _TIME_SYSTEM = (
-        "Current time: {now}. "
-        "Convert the user's time description to ISO 8601: YYYY-MM-DDTHH:MM:SS. "
-        "Return ONLY the datetime string. If ambiguous, return: null"
-    )
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-    raw = chat(_TIME_SYSTEM.format(now=now_str), description, temperature=0.0)
-    raw = raw.strip().strip('"\'')
-    if not raw or raw.lower() == "null":
-        return None
-    try:
-        return datetime.fromisoformat(raw[:19])
-    except ValueError:
-        return None
 
 
 # ── 聊天路由 (Chat Routing — Chat Tab) ───────────────────────────────────────

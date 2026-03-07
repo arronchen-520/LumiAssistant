@@ -247,6 +247,16 @@ def get_pending_reminders() -> list[tuple]:
         ).fetchall()
     return [(r["id"], r["remind_at"], r["message"]) for r in rows]
 
+def get_due_todos() -> list[tuple]:
+    """Todos whose deadline has passed and are not yet done."""
+    with _db() as conn:
+        rows = conn.execute(
+            "SELECT id, deadline, task FROM todos "
+            "WHERE deadline IS NOT NULL AND deadline <= ? AND status != 'done'",
+            (datetime.now().isoformat(),),
+        ).fetchall()
+    return [(r["id"], r["deadline"], r["task"]) for r in rows]
+
 
 def get_upcoming_reminders(limit: int = 20) -> list[dict]:
     with _db() as conn:

@@ -17,9 +17,9 @@ if not _GROQ_KEY or _GROQ_KEY.startswith("your_"):
         "    Get a free key at https://console.groq.com and add it to .env"
     )
 
-from modules.database           import init_db, save_entry, get_entries, get_upcoming_reminders, save_reminder, get_todos
+from modules.database           import init_db, save_entry, get_entries, get_todos
 from modules.voice              import VoiceRecorder
-from modules.ai_brain           import process_input, parse_reminder_time, chat_with_pet
+from modules.ai_brain           import process_input, chat_with_pet
 from modules.llm_client         import get_provider_info
 from modules.reminder_scheduler import ReminderScheduler
 from modules.pet_window         import DesktopPet
@@ -38,8 +38,8 @@ def main():
 
     # ── Callbacks ─────────────────────────────────────────────────────────────
 
-    def on_record_start():
-        recorder.start()
+    def on_record_start(auto_stop_callback=None):
+        recorder.start(auto_stop_callback)
 
     def on_record_stop() -> str:
         wav = recorder.stop()
@@ -168,18 +168,8 @@ def main():
             return result
 
         # ── Diary / Query / Both ──
-        # Parse reminders if present
-        saved_reminders = []
-        for r in result.get("reminders", []):
-            msg  = r.get("message", "").strip()
-            desc = r.get("time_description", "").strip()
-            if msg and desc:
-                dt = parse_reminder_time(desc)
-                if dt:
-                    from modules.database import save_reminder
-                    save_reminder(dt, msg)
-                    saved_reminders.append({"message": msg})
-                    print(f"    ⏰  reminder: {msg!r} @ {dt}")
+        # Not saving active reminders from query anymore as per unified todos
+
 
         # Save entry to SQLite
         from modules.database import save_entry
@@ -199,7 +189,6 @@ def main():
             tags=result.get("summary_tags", []),
             created_at=created_at,
         )
-        result["reminders"] = saved_reminders
         return result
 
     def on_chat(message: str) -> str:
@@ -213,7 +202,6 @@ def main():
         on_record_stop=on_record_stop,
         on_chat=on_chat,
         get_entries=lambda: get_entries(limit=50),
-        get_reminders=lambda: get_upcoming_reminders(limit=20),
         get_todos=lambda: get_todos(limit=50),
     )
     pet.set_save_callback(on_save_entry)
