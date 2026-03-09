@@ -1,7 +1,7 @@
 import json
 import re
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from modules.llm_client import chat
 
@@ -19,7 +19,7 @@ def clear_history():
 
 _UNIFIED_SYSTEM = """\
 You are Lumi, the user's personal AI diary companion (LumiAssistant).
-Current time: {now}.
+{time_context}
 
 The user has sent text (typed or transcribed from voice). Your job is to:
 1. Determine the INTENT. Is this a diary entry, a memory query, a casual chat, a brainstorm request, a command, or a persona update?
@@ -52,8 +52,8 @@ The user has sent text (typed or transcribed from voice). Your job is to:
          "project": "project/category name or null",
          "notes": "progress notes or null",
          "target_keyword": "keyword to find existing todo item",
-         "priority": "high | medium | low",
-         "deadline": "YYYY-MM-DD or null"
+         "deadline": "YYYY-MM-DD or null",
+         "subtasks": [{{"text": "subtask description", "done": false}}] or null
      }}
   ] (if todo, else null)
 }}
@@ -86,9 +86,8 @@ todo_actions rules:
 - When user says "X is done" or "finished X": action="complete_todo", set target_keyword to identify the existing todo.
 - When user reports progress ("X is at step 2, next is step 3"): action="update_todo", set target_keyword, notes for progress, and optionally add a new add_todo for the next step.
 - You can return MULTIPLE todo_actions in one response (e.g. complete one + add another).
-- Infer priority from urgency cues: "urgent"/"紧急"/"赶紧" → high, "有空再"→ low, default → medium.
-- Infer deadline from time cues: "by Friday" / "周五前" / "下周" → YYYY-MM-DD.
-- For big tasks, consider suggesting subtask breakdown in the reflection.
+- Infer deadline from time cues: "by Friday" / "周五前" / "下周" → YYYY-MM-DD. Use the precomputed dates above.
+- For big tasks, break them into subtasks: [{"text": "step 1", "done": false}, {"text": "step 2", "done": false}]
 - Always give a warm, encouraging reflection when processing todo updates.
 
 User Persona / Long-term Memory for context:
@@ -100,7 +99,19 @@ def process_input(text: str, context_entries: list = None) -> dict:
     from modules.memory import answer_memory_query
     from modules.database import get_all_personas
 
-    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    now = datetime.now()
+    days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    def _next_dow(d, dow):
+        diff = (dow - d.weekday()) % 7 or 7
+        return (d + timedelta(days=diff)).strftime('%Y-%m-%d')
+    time_context = (
+        f"Current time: {now.strftime('%Y-%m-%d %H:%M')} ({days[now.weekday()]})\n"
+        f"Today: {now.strftime('%Y-%m-%d')}\n"
+        f"Tomorrow: {(now + timedelta(days=1)).strftime('%Y-%m-%d')}\n"
+        f"Day after tomorrow: {(now + timedelta(days=2)).strftime('%Y-%m-%d')}\n"
+        f"This Sunday: {_next_dow(now, 6)}\n"
+        f"Next Monday: {_next_dow(now, 0)}"
+    )
     
     # Load persona context
     personas = get_all_personas()
@@ -114,7 +125,7 @@ def process_input(text: str, context_entries: list = None) -> dict:
             context += f"  [{e['date']}] {e['text']}\n"
 
     raw = chat(
-        _UNIFIED_SYSTEM.format(now=now, persona=persona_str),
+        _UNIFIED_SYSTEM.format(time_context=time_context, persona=persona_str),
         f"{context}\nUser input:\n{text}",
         temperature=0.3,
     )

@@ -73,8 +73,8 @@ def init_db():
                 task        TEXT NOT NULL,
                 status      TEXT DEFAULT 'pending',
                 notes       TEXT,
-                priority    TEXT DEFAULT 'medium',
-                deadline    TEXT
+                deadline    TEXT,
+                subtasks    TEXT
             );
 
             -- Keep FTS in sync: populate on insert
@@ -86,12 +86,11 @@ def init_db():
             -- Rebuild FTS for any rows that existed before the trigger was created
             -- (safe to run multiple times — INSERT OR IGNORE skips existing rowids)
         """)
-        # Migration: ensure todos table has priority and deadline columns
+        # Migration: ensure todos table has subtasks column
         try:
-            conn.execute("SELECT priority FROM todos LIMIT 1")
+            conn.execute("SELECT subtasks FROM todos LIMIT 1")
         except Exception:
-            conn.execute("ALTER TABLE todos ADD COLUMN priority TEXT DEFAULT 'medium'")
-            conn.execute("ALTER TABLE todos ADD COLUMN deadline TEXT")
+            conn.execute("ALTER TABLE todos ADD COLUMN subtasks TEXT")
             conn.commit()
 
         # Backfill FTS for pre-existing rows (idempotent)
@@ -151,6 +150,12 @@ def upsert_persona(key: str, value: str):
     """Updates or inserts a persona setting for long-term agent memory."""
     with _db() as conn:
         conn.execute("INSERT OR REPLACE INTO persona (key, value) VALUES (?, ?)", (key, value))
+
+def delete_persona(key: str) -> bool:
+    """Deletes a persona setting by key. Returns True if deleted."""
+    with _db() as conn:
+        cur = conn.execute("DELETE FROM persona WHERE key = ?", (key,))
+        return cur.rowcount > 0
 
 def get_all_personas() -> dict[str, str]:
     """Returns all persona settings as a dictionary."""
@@ -307,19 +312,20 @@ def mark_reminder_done(rid: int):
 # ── To-Do ─────────────────────────────────────────────────────────────────────
 
 def save_todo(task: str, project: str = None, notes: str = None,
-              priority: str = "medium", deadline: str = None) -> int:
+              deadline: str = None, subtasks: list = None) -> int:
     now = datetime.now().isoformat()
+    subtasks_json = json.dumps(subtasks or [], ensure_ascii=False)
     with _db() as conn:
         cur = conn.execute(
-            "INSERT INTO todos (created_at, updated_at, project, task, status, notes, priority, deadline) VALUES (?,?,?,?,?,?,?,?)",
-            (now, now, project, task, "pending", notes, priority or "medium", deadline),
+            "INSERT INTO todos (created_at, updated_at, project, task, status, notes, deadline, subtasks) VALUES (?,?,?,?,?,?,?,?)",
+            (now, now, project, task, "pending", notes, deadline, subtasks_json),
         )
         return cur.lastrowid
 
 
 def get_todos(status: str = None, project: str = None, limit: int = 50) -> list[dict]:
     with _db() as conn:
-        query = "SELECT id, created_at, updated_at, project, task, status, notes, priority, deadline FROM todos"
+        query = "SELECT id, created_at, updated_at, project, task, status, notes, deadline, subtasks FROM todos"
         conditions = []
         params = []
         if status:
@@ -330,7 +336,10 @@ def get_todos(status: str = None, project: str = None, limit: int = 50) -> list[
             params.append(f"%{project}%")
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
-        query += " ORDER BY CASE status WHEN 'in_progress' THEN 0 WHEN 'pending' THEN 1 WHEN 'done' THEN 2 END, CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 END, deadline ASC NULLS LAST, updated_at DESC LIMIT ?"
+        query += (" ORDER BY "
+                  "CASE WHEN deadline IS NOT NULL AND deadline <= datetime('now') THEN 0 ELSE 1 END, "
+                  "CASE status WHEN 'in_progress' THEN 0 WHEN 'pending' THEN 1 WHEN 'done' THEN 2 END, "
+                  "deadline ASC NULLS LAST, created_at DESC LIMIT ?")
         params.append(limit)
         rows = conn.execute(query, params).fetchall()
     return [_todo_row(r) for r in rows]
@@ -349,7 +358,7 @@ def update_todo_status(todo_id: int, status: str, notes: str = None) -> bool:
 
 
 def update_todo_by_keyword(keyword: str, status: str = None, notes: str = None,
-                           new_task: str = None, priority: str = None, deadline: str = None) -> int:
+                           new_task: str = None, deadline: str = None, subtasks: list = None) -> int:
     now = datetime.now().isoformat()
     with _db() as conn:
         rows = conn.execute("SELECT id FROM todos WHERE task LIKE ? OR project LIKE ?",
@@ -367,12 +376,12 @@ def update_todo_by_keyword(keyword: str, status: str = None, notes: str = None,
             if new_task:
                 updates.append("task = ?")
                 params.append(new_task)
-            if priority:
-                updates.append("priority = ?")
-                params.append(priority)
             if deadline:
                 updates.append("deadline = ?")
                 params.append(deadline)
+            if subtasks is not None:
+                updates.append("subtasks = ?")
+                params.append(json.dumps(subtasks, ensure_ascii=False))
             params.append(r["id"])
             conn.execute(f"UPDATE todos SET {', '.join(updates)} WHERE id = ?", params)
             count += 1
@@ -395,6 +404,11 @@ def get_todo_summary() -> dict:
 
 
 def _todo_row(r) -> dict:
+    subtasks_raw = r["subtasks"] if "subtasks" in r.keys() else "[]"
+    try:
+        subtasks = json.loads(subtasks_raw) if subtasks_raw else []
+    except (json.JSONDecodeError, TypeError):
+        subtasks = []
     return {
         "id":         r["id"],
         "created_at": r["created_at"][:16],
@@ -403,6 +417,6 @@ def _todo_row(r) -> dict:
         "task":       r["task"],
         "status":     r["status"],
         "notes":      r["notes"] or "",
-        "priority":   r["priority"] if "priority" in r.keys() else "medium",
         "deadline":   (r["deadline"] or "") if "deadline" in r.keys() else "",
+        "subtasks":   subtasks,
     }

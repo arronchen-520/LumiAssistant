@@ -141,8 +141,8 @@ def main():
                         task=ta.get("task", ""),
                         project=ta.get("project"),
                         notes=ta.get("notes"),
-                        priority=ta.get("priority", "medium"),
                         deadline=ta.get("deadline"),
+                        subtasks=ta.get("subtasks"),
                     )
                     messages.append(f"📌 已添加待办：{ta.get('task', '')[:30]}")
                 elif action == "complete_todo":
@@ -154,8 +154,8 @@ def main():
                         status="in_progress",
                         notes=ta.get("notes"),
                         new_task=ta.get("task") if ta.get("task") != ta.get("target_keyword") else None,
-                        priority=ta.get("priority"),
                         deadline=ta.get("deadline"),
+                        subtasks=ta.get("subtasks"),
                     )
                     messages.append("📝 已更新待办进度！" if count else "没有找到该待办。")
                 elif action == "delete_todo":
