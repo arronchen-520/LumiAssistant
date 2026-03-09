@@ -558,10 +558,6 @@
             border-left-color: var(--error)
         }
 
-        .todo-card.high-prio {
-            border-left-color: var(--warn)
-        }
-
         .todo-project {
             font-size: 11px;
             font-weight: 600;
@@ -652,28 +648,6 @@
             margin-top: 10px;
             flex-wrap: wrap;
             gap: 6px
-        }
-
-        .todo-priority {
-            font-size: 10px;
-            font-weight: 600;
-            padding: 3px 8px;
-            border-radius: 6px
-        }
-
-        .todo-priority.high {
-            background: rgba(248, 113, 113, .12);
-            color: var(--error)
-        }
-
-        .todo-priority.medium {
-            background: rgba(245, 197, 66, .08);
-            color: var(--dim)
-        }
-
-        .todo-priority.low {
-            background: rgba(94, 232, 176, .08);
-            color: var(--dim)
         }
 
         .todo-time {
@@ -948,6 +922,115 @@
                 transform: translateY(-20px) scale(1)
             }
         }
+
+        /* Swipe gesture */
+        .todo-card-wrapper {
+            position: relative;
+            overflow: hidden;
+            border-radius: var(--radius-sm);
+            margin-bottom: 10px;
+        }
+
+        .todo-swipe-bg {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            font-size: 20px;
+            font-weight: 700;
+            padding: 0 20px;
+            color: #fff;
+            opacity: 0;
+            transition: opacity .15s;
+        }
+
+        .todo-swipe-bg.left {
+            background: var(--error);
+            justify-content: flex-end;
+        }
+
+        .todo-swipe-bg.right {
+            background: var(--success);
+            justify-content: flex-start;
+        }
+
+        .todo-card-wrapper .todo-card {
+            margin-bottom: 0;
+            transition: transform .2s ease;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Quick add date row */
+        .todo-date-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            align-items: center;
+        }
+
+        .todo-date-row input[type="datetime-local"] {
+            flex: 1;
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--card3);
+            background: var(--card);
+            color: var(--text);
+            font-size: 12px;
+            outline: none;
+        }
+
+        .todo-date-row input[type="datetime-local"]:focus {
+            border-color: var(--accent);
+        }
+
+        .todo-date-toggle {
+            background: var(--card2);
+            border: 1px solid var(--card3);
+            color: var(--muted);
+            border-radius: var(--radius-sm);
+            padding: 8px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all .2s;
+        }
+
+        .todo-date-toggle.active {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* History search */
+        .history-search {
+            margin-bottom: 14px;
+        }
+
+        .history-search input {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--card3);
+            background: var(--card);
+            color: var(--text);
+            font-size: 13px;
+            outline: none;
+        }
+
+        .history-search input:focus {
+            border-color: var(--accent);
+        }
+
+        .history-search input::placeholder {
+            color: var(--dim);
+        }
+
+        .history-highlight {
+            background: rgba(124, 140, 248, .25);
+            border-radius: 2px;
+            padding: 0 1px;
+        }
     </style>
 </head>
 
@@ -984,7 +1067,13 @@
             <div class="todo-quick-add">
                 <input class="todo-quick-input" id="quickTodoInput" placeholder="快速添加待办..."
                     onkeydown="if(event.key==='Enter')quickAddTodo()">
+                <button class="todo-date-toggle" id="dateToggleBtn" onclick="toggleDatePicker()">📅</button>
                 <button class="todo-quick-btn" onclick="quickAddTodo()">+</button>
+            </div>
+            <div class="todo-date-row" id="datePickerRow" style="display:none">
+                <input type="datetime-local" id="quickTodoDate">
+                <button onclick="clearDatePicker()"
+                    style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px">✕</button>
             </div>
             <div class="todo-stats" id="todoStats"></div>
             <div id="todoList"></div>
@@ -992,6 +1081,9 @@
 
         <!-- History Tab -->
         <div id="tab-history" class="tab-content">
+            <div class="history-search">
+                <input type="text" id="historySearch" placeholder="🔍 搜索笔记..." oninput="renderHistory()">
+            </div>
             <div id="historyList"></div>
         </div>
 
@@ -1036,6 +1128,12 @@
                 <div class="setting-title">⚠️ 危险操作</div>
                 <button class="setting-btn setting-btn-outline" style="border-color:var(--error);color:var(--error)"
                     onclick="clearAllData()">🗑 清除所有数据</button>
+            </div>
+            <div class="setting-group">
+                <div class="setting-title">🔔 截止提醒通知</div>
+                <button class="setting-btn setting-btn-primary" id="notifBtn" onclick="enableNotifications()"
+                    style="margin-bottom:8px">开启通知提醒</button>
+                <div class="setting-hint" id="notifHint">开启后，待办即将到期时会弹出浏览器通知提醒你。</div>
             </div>
         </div>
     </div>
@@ -1250,7 +1348,7 @@
                     result.todo_actions.forEach(ta => {
                         if (ta.action === 'add_todo') {
                             const subtasks = (ta.subtasks || []).map(s => ({ text: s, done: false }));
-                            todos.push({ id: Date.now() + Math.random(), created_at: new Date().toISOString(), updated_at: new Date().toISOString(), project: ta.project || '', task: ta.task, notes: ta.notes || '', priority: ta.priority || 'medium', deadline: ta.deadline || '', subtasks });
+                            todos.push({ id: Date.now() + Math.random(), created_at: new Date().toISOString(), updated_at: new Date().toISOString(), project: ta.project || '', task: ta.task, notes: ta.notes || '', deadline: ta.deadline || '', subtasks });
                             sp.push(`📌 ${ta.task.slice(0, 20)}`);
                         } else if (ta.action === 'complete_todo' || ta.action === 'delete_todo') {
                             const kw = (ta.target_keyword || '').toLowerCase();
@@ -1262,7 +1360,7 @@
                                 if ((t.task.toLowerCase().includes(kw) || (t.project && t.project.toLowerCase().includes(kw)))) {
                                     if (ta.notes) t.notes = ta.notes;
                                     if (ta.deadline) t.deadline = ta.deadline;
-                                    if (ta.priority) t.priority = ta.priority;
+
                                     if (ta.subtasks) { const subs = (ta.subtasks || []).map(s => ({ text: s, done: false })); t.subtasks = [...(t.subtasks || []), ...subs] }
                                     t.updated_at = new Date().toISOString();
                                 }
@@ -1312,20 +1410,29 @@
         async function callLumi(text, apiKey) {
             const limit = parseInt(localStorage.getItem(KEYS.historyLimit) || '20');
             const diaries = loadArr(KEYS.diaries).slice(0, limit).map(d => `[${d.date}] ${d.text}`).join('\n');
-            const rems = loadArr(KEYS.reminders).filter(r => !r.done).map(r => `[${new Date(r.time).toLocaleString()}] ${r.message}`).join('\n');
             const todos = loadArr(KEYS.todos);
             const todoCtx = todos.map(t => {
-                let s = `[${t.priority || 'medium'}${t.deadline ? ' DUE:' + t.deadline : ''}] ${t.project ? t.project + ': ' : ''}${t.task}`;
+                let s = `[${t.deadline ? 'DUE:' + t.deadline : 'no deadline'}] ${t.project ? t.project + ': ' : ''}${t.task}`;
                 if (t.notes) s += ` (${t.notes})`;
                 if (t.subtasks && t.subtasks.length > 0) s += '\n  subtasks: ' + t.subtasks.map(st => (st.done ? '[x] ' : '[ ] ') + st.text).join(', ');
                 return s;
             }).join('\n');
             const persona = loadObj(KEYS.persona);
             const personaCtx = Object.entries(persona).map(([k, v]) => `- ${k}: ${v}`).join('\n');
-            const now = new Date(), days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-            const nowStr = `${now.toLocaleString()} (${days[now.getDay()]})`;
+            const now = new Date();
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const pad = d => d.toISOString().split('T')[0];
+            const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
+            const nextDayOfWeek = (d, dow) => { const r = new Date(d); const diff = (dow - r.getDay() + 7) % 7 || 7; r.setDate(r.getDate() + diff); return r; };
+            const timeCtx = `Current time: ${now.toISOString().replace('T', ' ').slice(0, 19)} (${days[now.getDay()]})
+Today: ${pad(now)}
+Tomorrow: ${pad(addDays(now, 1))}
+Day after tomorrow: ${pad(addDays(now, 2))}
+This Sunday: ${pad(nextDayOfWeek(now, 0))}
+Next Monday: ${pad(nextDayOfWeek(now, 1))}`;
 
-            const sys = `You are Lumi, a professional yet warm AI personal secretary. Current time: ${nowStr}.
+            const sys = `You are Lumi, a professional yet warm AI personal secretary.
+${timeCtx}
 
 USER PERSONA (long-term memory):
 ${personaCtx || 'None yet.'}
@@ -1348,7 +1455,6 @@ Return ONLY valid JSON:
       "project": "project name or null",
       "notes": "progress notes or null",
       "target_keyword": "keyword to match existing todo",
-      "priority": "high"|"medium"|"low",
       "deadline": "YYYY-MM-DDTHH:mm:ss or null",
       "subtasks": ["subtask 1","subtask 2"]
     }
@@ -1364,9 +1470,8 @@ RULES:
    - "complete_todo" and "delete_todo" both REMOVE the item entirely (user wants: add freely, delete when done)
    - When user says "X做完了,接下来是Y": delete X + add Y
    - For big tasks, add subtasks array to break them down
-   - Infer priority from urgency ("紧急"→high, "有空"→low). If unstated, assign relative priority (high/medium/low) by judging its nature compared to existing TO-DOS.
    - Infer deadline from time. If user specifies a time ("下午5点"), use YYYY-MM-DDTHH:mm:ss. If user only specifies a day ("今天", "周五前"), default the time to 23:59:59 of that day.
-   - "update_todo" can add new subtasks or change notes/deadline/priority
+   - "update_todo" can add new subtasks or change notes/deadline
 4. AUTO PERSONA: Whenever user reveals personal info naturally, add persona_updates:
    - Name, job, hobbies, patterns, preferences, goals
    - E.g. "我今天又加班了" → {"key":"work_pattern","value":"经常加班"}
@@ -1478,12 +1583,28 @@ RULES:
         // ═══════════════════════════════════════════════════════════════
         // TODO — with subtasks, quick add, and delete-when-done
         // ═══════════════════════════════════════════════════════════════
+        function toggleDatePicker() {
+            const row = document.getElementById('datePickerRow');
+            const btn = document.getElementById('dateToggleBtn');
+            const visible = row.style.display !== 'none';
+            row.style.display = visible ? 'none' : 'flex';
+            btn.classList.toggle('active', !visible);
+        }
+
+        function clearDatePicker() {
+            document.getElementById('quickTodoDate').value = '';
+            document.getElementById('datePickerRow').style.display = 'none';
+            document.getElementById('dateToggleBtn').classList.remove('active');
+        }
+
         function quickAddTodo() {
             const input = document.getElementById('quickTodoInput'), text = input.value.trim();
             if (!text) return;
+            const dateInput = document.getElementById('quickTodoDate');
+            const deadline = dateInput ? dateInput.value : '';
             const todos = loadArr(KEYS.todos);
-            todos.push({ id: Date.now(), created_at: new Date().toISOString(), updated_at: new Date().toISOString(), project: '', task: text, notes: '', priority: 'medium', deadline: '', subtasks: [] });
-            saveArr(KEYS.todos, todos); input.value = ''; renderTodos(); updateBadge();
+            todos.push({ id: Date.now(), created_at: new Date().toISOString(), updated_at: new Date().toISOString(), project: '', task: text, notes: '', deadline: deadline, subtasks: [] });
+            saveArr(KEYS.todos, todos); input.value = ''; clearDatePicker(); renderTodos(); updateBadge();
         }
 
         function renderTodos() {
@@ -1498,39 +1619,26 @@ RULES:
                 list.innerHTML = '<div class="todo-empty"><span class="icon">📋</span>还没有待办事项<br><span style="font-size:12px;margin-top:6px;display:block">在上方输入框快速添加，或在聊天中告诉 Lumi</span></div>';
                 return;
             }
-            // Sort: Overdue first, then Urgent (High Priority) AND/OR Due Date, then Medium/Low Priority
+            // Sort: Overdue first, then by due date, then items without deadline
             const sorted = [...todos].sort((a, b) => {
                 const now = Date.now();
                 const aTime = a.deadline ? new Date(a.deadline).getTime() : Infinity;
                 const bTime = b.deadline ? new Date(b.deadline).getTime() : Infinity;
 
-                // Group 1: Overdue items (time < now) get first priority
+                // Group 1: Overdue items first
                 const aOverdue = aTime < now;
                 const bOverdue = bTime < now;
                 if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
-                if (aOverdue && bOverdue) return aTime - bTime; // both overdue, sort closest to now first (earliest)
+                if (aOverdue && bOverdue) return aTime - bTime;
 
-                // Group 2: Urgent (High priority)
-                const aHigh = a.priority === 'high';
-                const bHigh = b.priority === 'high';
-                if (aHigh !== bHigh) return aHigh ? -1 : 1;
-
-                // Group 3: Deadlines. If both have deadlines (and neither/both are overdue), sort by closest deadline first
-                if (aTime !== Infinity && bTime !== Infinity && aTime !== bTime) {
-                    return aTime - bTime;
-                }
-
-                // Group 4: One has a deadline, one doesn't
+                // Group 2: Has deadline vs no deadline
                 if (aTime !== Infinity && bTime === Infinity) return -1;
                 if (aTime === Infinity && bTime !== Infinity) return 1;
 
-                // Group 5: Priority
-                const p = { high: 0, medium: 1, low: 2 };
-                const pA = p[a.priority] !== undefined ? p[a.priority] : 1;
-                const pB = p[b.priority] !== undefined ? p[b.priority] : 1;
-                if (pA !== pB) return pA - pB;
+                // Group 3: Both have deadlines, sort by closest first
+                if (aTime !== bTime) return aTime - bTime;
 
-                // Group 6: Creation time (fallback to stable sort if no created_at)
+                // Fallback: creation time
                 return (a.id || 0) - (b.id || 0);
             });
             list.innerHTML = sorted.map(t => todoCardHTML(t)).join('');
@@ -1541,7 +1649,7 @@ RULES:
             const deadlineDate = t.deadline ? new Date(t.deadline) : null;
             const isValidDate = deadlineDate && !isNaN(deadlineDate.getTime());
             const isOverdue = isValidDate && deadlineDate < now;
-            const isHigh = t.priority === 'high';
+
             let deadlineHTML = '';
 
             if (t.deadline) {
@@ -1579,7 +1687,7 @@ RULES:
                     deadlineHTML = `<div class="todo-deadline normal">📅 ${esc(t.deadline)}</div>`;
                 }
             }
-            const prioHTML = t.priority && t.priority !== 'medium' ? `<span class="todo-priority ${t.priority}">${t.priority === 'high' ? '🔴 紧急' : '🟢 低'}</span>` : '';
+
 
             // Subtasks
             let subHTML = '';
@@ -1592,18 +1700,21 @@ RULES:
                 ).join('') + '</div>';
             }
 
-            return `<div class="todo-card${isOverdue ? ' overdue' : ''}${isHigh ? ' high-prio' : ''}">
+            return `<div class="todo-card-wrapper" data-todo-id="${t.id}">
+        <div class="todo-swipe-bg right">✓</div>
+        <div class="todo-swipe-bg left">✕</div>
+        <div class="todo-card${isOverdue ? ' overdue' : ''}">
         ${t.project ? `<div class="todo-project">📁 ${esc(t.project)}</div>` : ''}
         <div class="todo-task">${esc(t.task)}</div>
         ${t.notes ? `<div class="todo-notes">📝 ${esc(t.notes)}</div>` : ''}
         ${deadlineHTML}${subHTML}
         <div class="todo-meta">
-            <div style="display:flex;gap:6px;align-items:center">${prioHTML}</div>
             <div style="display:flex;gap:6px">
                 <button class="btn-todo-done" onclick="completeTodo(${t.id})">✓ 完成</button>
                 <button class="btn-todo-del" onclick="deleteTodo(${t.id})">✕</button>
             </div>
         </div>
+    </div>
     </div>`;
         }
 
@@ -1630,9 +1741,33 @@ RULES:
         // HISTORY
         // ═══════════════════════════════════════════════════════════════
         function renderHistory() {
-            const diaries = loadArr(KEYS.diaries), list = document.getElementById('historyList');
-            if (!diaries.length) { list.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--dim)"><span style="font-size:40px;display:block;margin-bottom:10px;opacity:.4">�</span>还没有记录过想法或历史~</div>'; return }
-            list.innerHTML = diaries.map((d, idx) => `<div class="history-card" style="position:relative"><button onclick="deleteHistory(${idx})" style="position:absolute; top:12px; right:12px; background:none; border:none; color:var(--dim); cursor:pointer; font-size:14px; padding:4px;" title="删除">✕</button><div class="history-date">LOG ${esc(d.date)}</div><div class="history-text">${esc(d.text)}</div>${d.reflection ? `<div class="history-reflection">✦ ${esc(d.reflection)}</div>` : ''}</div>`).join('');
+            const allDiaries = loadArr(KEYS.diaries), list = document.getElementById('historyList');
+            const searchInput = document.getElementById('historySearch');
+            const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+            const diaries = query
+                ? allDiaries.filter(d => (d.text && d.text.toLowerCase().includes(query)) || (d.reflection && d.reflection.toLowerCase().includes(query)))
+                : allDiaries;
+
+            if (!diaries.length) {
+                list.innerHTML = query
+                    ? '<div style="text-align:center;padding:40px 20px;color:var(--dim)">没有找到匹配的笔记 🔍</div>'
+                    : '<div style="text-align:center;padding:40px 20px;color:var(--dim)"><span style="font-size:40px;display:block;margin-bottom:10px;opacity:.4">📝</span>还没有记录过想法或历史~</div>';
+                return;
+            }
+
+            function highlight(text) {
+                if (!query || !text) return esc(text);
+                const escaped = esc(text);
+                const re = new RegExp(`(${esc(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                return escaped.replace(re, '<span class="history-highlight">$1</span>');
+            }
+
+            // Find original index for delete
+            list.innerHTML = diaries.map(d => {
+                const origIdx = allDiaries.indexOf(d);
+                return `<div class="history-card" style="position:relative"><button onclick="deleteHistory(${origIdx})" style="position:absolute; top:12px; right:12px; background:none; border:none; color:var(--dim); cursor:pointer; font-size:14px; padding:4px;" title="删除">✕</button><div class="history-date">LOG ${esc(d.date)}</div><div class="history-text">${highlight(d.text)}</div>${d.reflection ? `<div class="history-reflection">✦ ${highlight(d.reflection)}</div>` : ''}</div>`;
+            }).join('');
         }
 
         function deleteHistory(idx) {
@@ -1656,7 +1791,7 @@ RULES:
             const newKey = document.getElementById('apiKeyInput').value.trim();
             localStorage.setItem(KEYS.apiKey, newKey);
             if (!oldKey && newKey) {
-                const initPrompt = 'Lumi你好！我已经配置好了API接口。请你记住你的能力：1. 强大的待办事项管理（支持子任务和优先级）；2. 长期记忆能力，能记住我的喜好习惯；3. 想法记录器（当我说想法时，将其分类为idea并存入历史）。请在长期记忆里记下"Lumi已准备好成为全能助理"，并跟我打个招呼！';
+                const initPrompt = 'Lumi你好！我已经配置好了API接口。请你记住你的能力：1. 强大的待办事项管理（支持子任务和截止日期）；2. 长期记忆能力，能记住我的喜好习惯；3. 想法记录器（当我说想法时，将其分类为idea并存入历史）。请在长期记忆里记下"Lumi已准备好成为全能助理"，并跟我打个招呼！';
                 addUserMsg('已连接好服务！');
                 setAvatar('thinking'); setStatus('初始化中...');
                 document.getElementById('sendBtn').disabled = true;
@@ -1711,7 +1846,7 @@ RULES:
             renderPersona();
         }
         function exportData() {
-            const backup = { export_time: new Date().toISOString(), diaries: loadArr(KEYS.diaries), reminders: loadArr(KEYS.reminders), todos: loadArr(KEYS.todos), persona: loadObj(KEYS.persona), chat: chatH };
+            const backup = { export_time: new Date().toISOString(), diaries: loadArr(KEYS.diaries), todos: loadArr(KEYS.todos), persona: loadObj(KEYS.persona), chat: chatH };
             const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }));
             a.download = `Lumi_Backup_${Date.now()}.json`; a.click();
         }
@@ -1721,7 +1856,7 @@ RULES:
             r.onload = ev => {
                 try {
                     const d = JSON.parse(ev.target.result);
-                    if (d.diaries) saveArr(KEYS.diaries, d.diaries); if (d.reminders) saveArr(KEYS.reminders, d.reminders);
+                    if (d.diaries) saveArr(KEYS.diaries, d.diaries);
                     if (d.todos) saveArr(KEYS.todos, d.todos); if (d.persona) saveObj(KEYS.persona, d.persona);
                     if (d.chat) { chatH = d.chat; saveChatCtx() }
                     renderTodos(); renderHistory(); updateBadge(); addLumiMsg('数据导入成功！ ✦');
@@ -1733,6 +1868,168 @@ RULES:
             Object.values(KEYS).forEach(k => localStorage.removeItem(k)); localStorage.removeItem('lumi_ui_msgs');
             chatH = []; document.getElementById('chatMessages').innerHTML = '';
             renderTodos(); renderHistory(); updateBadge(); addLumiMsg('所有数据已清除。从零开始吧 ✦');
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // NOTIFICATIONS — foreground deadline reminders
+        // ═══════════════════════════════════════════════════════════════
+        let notifInterval = null;
+        const NOTIFIED_KEY = 'lumi_notified_todos';
+
+        function enableNotifications() {
+            if (!('Notification' in window)) {
+                document.getElementById('notifHint').textContent = '你的浏览器不支持通知功能 😅';
+                return;
+            }
+            Notification.requestPermission().then(perm => {
+                updateNotifUI(perm);
+                if (perm === 'granted') startNotifPolling();
+            });
+        }
+
+        function updateNotifUI(perm) {
+            const btn = document.getElementById('notifBtn');
+            const hint = document.getElementById('notifHint');
+            if (!btn) return;
+            if (perm === 'granted') {
+                btn.textContent = '✅ 通知已开启';
+                btn.disabled = true;
+                btn.style.opacity = '.6';
+                hint.textContent = '待办即将到期时会弹出通知提醒。';
+            } else if (perm === 'denied') {
+                btn.textContent = '❌ 通知被拒绝';
+                btn.disabled = true;
+                btn.style.opacity = '.6';
+                hint.textContent = '请在浏览器设置中手动开启通知权限。';
+            }
+        }
+
+        function startNotifPolling() {
+            if (notifInterval) return;
+            checkDeadlineNotifs();
+            notifInterval = setInterval(checkDeadlineNotifs, 60000);
+        }
+
+        function checkDeadlineNotifs() {
+            if (Notification.permission !== 'granted') return;
+            const todos = loadArr(KEYS.todos);
+            const notified = JSON.parse(localStorage.getItem(NOTIFIED_KEY) || '{}');
+            const now = Date.now();
+
+            todos.forEach(t => {
+                if (!t.deadline) return;
+                const dl = new Date(t.deadline).getTime();
+                if (isNaN(dl)) return;
+                const diff = dl - now;
+                const todoKey = String(t.id);
+
+                if (diff > 0 && diff <= 15 * 60000 && !notified[todoKey + '_soon']) {
+                    new Notification('🔥 待办即将到期', {
+                        body: `「${t.task}」还有 ${Math.ceil(diff / 60000)} 分钟到期`,
+                        tag: 'lumi-soon-' + todoKey
+                    });
+                    notified[todoKey + '_soon'] = true;
+                }
+
+                if (diff < 0 && diff > -5 * 60000 && !notified[todoKey + '_overdue']) {
+                    new Notification('🚨 待办已过期', {
+                        body: `「${t.task}」已经过期了！`,
+                        tag: 'lumi-overdue-' + todoKey
+                    });
+                    notified[todoKey + '_overdue'] = true;
+                }
+            });
+
+            localStorage.setItem(NOTIFIED_KEY, JSON.stringify(notified));
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // SWIPE GESTURES — swipe todo cards to complete/delete
+        // ═══════════════════════════════════════════════════════════════
+        const SWIPE_THRESHOLD = 80;
+
+        function initSwipeGestures() {
+            const list = document.getElementById('todoList');
+            if (!list || list._swipeInit) return;
+            list._swipeInit = true;
+
+            let startX = 0, startY = 0, currentX = 0, swiping = false, locked = false, activeCard = null, activeWrapper = null;
+
+            list.addEventListener('touchstart', e => {
+                const wrapper = e.target.closest('.todo-card-wrapper');
+                if (!wrapper) return;
+                const card = wrapper.querySelector('.todo-card');
+                if (!card) return;
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                currentX = 0;
+                swiping = false;
+                locked = false;
+                activeCard = card;
+                activeWrapper = wrapper;
+                activeCard.style.transition = 'none';
+            }, { passive: true });
+
+            list.addEventListener('touchmove', e => {
+                if (!activeCard || locked) return;
+                const dx = e.touches[0].clientX - startX;
+                const dy = e.touches[0].clientY - startY;
+
+                // First significant move: decide if horizontal swipe or vertical scroll
+                if (!swiping && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+                    if (Math.abs(dy) > Math.abs(dx)) {
+                        // Vertical scroll — cancel swipe
+                        activeCard = null;
+                        locked = true;
+                        return;
+                    }
+                    swiping = true;
+                }
+
+                if (!swiping) return;
+                currentX = dx;
+                activeCard.style.transform = `translateX(${dx}px)`;
+
+                const leftBg = activeWrapper.querySelector('.todo-swipe-bg.left');
+                const rightBg = activeWrapper.querySelector('.todo-swipe-bg.right');
+                if (dx < -30) {
+                    leftBg.style.opacity = Math.min(1, Math.abs(dx) / SWIPE_THRESHOLD);
+                    rightBg.style.opacity = '0';
+                } else if (dx > 30) {
+                    rightBg.style.opacity = Math.min(1, dx / SWIPE_THRESHOLD);
+                    leftBg.style.opacity = '0';
+                } else {
+                    leftBg.style.opacity = '0';
+                    rightBg.style.opacity = '0';
+                }
+            }, { passive: true });
+
+            list.addEventListener('touchend', () => {
+                if (!activeCard || !swiping) { activeCard = null; return; }
+
+                activeCard.style.transition = 'transform .2s ease';
+                const todoId = Number(activeWrapper.dataset.todoId);
+
+                if (currentX < -SWIPE_THRESHOLD) {
+                    activeCard.style.transform = 'translateX(-100%)';
+                    if (navigator.vibrate) navigator.vibrate(50);
+                    setTimeout(() => deleteTodo(todoId), 200);
+                } else if (currentX > SWIPE_THRESHOLD) {
+                    activeCard.style.transform = 'translateX(100%)';
+                    if (navigator.vibrate) navigator.vibrate([30, 30, 30]);
+                    setTimeout(() => completeTodo(todoId), 200);
+                } else {
+                    activeCard.style.transform = 'translateX(0)';
+                    const leftBg = activeWrapper.querySelector('.todo-swipe-bg.left');
+                    const rightBg = activeWrapper.querySelector('.todo-swipe-bg.right');
+                    if (leftBg) leftBg.style.opacity = '0';
+                    if (rightBg) rightBg.style.opacity = '0';
+                }
+
+                activeCard = null;
+                activeWrapper = null;
+                swiping = false;
+            }, { passive: true });
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -1748,6 +2045,17 @@ RULES:
                 p.style.width = p.style.height = (2 + Math.random() * 3) + 'px'; c.appendChild(p)
             }
         }
+
+        // Init notifications if already granted
+        if ('Notification' in window && Notification.permission === 'granted') {
+            startNotifPolling();
+            updateNotifUI('granted');
+        }
+
+        // Init swipe gestures, and re-init after each render
+        initSwipeGestures();
+        const _origRenderTodos = renderTodos;
+        renderTodos = function () { _origRenderTodos(); initSwipeGestures(); };
     </script>
 </body>
 
